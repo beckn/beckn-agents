@@ -1,6 +1,6 @@
 ---
 name: beckn-payload-builder
-description: Understands Beckn 2.0.0 LTS core schema and generates complete, valid sample payloads for all API actions given a use case description. Detects when domain-specific custom schemas are needed and maps them correctly. Covers retail, food & beverage, grocery, EV charging, energy (P2P trading, demand flex), and data marketplace (DDM) domains.
+description: 'Understands Beckn 2.0.0 LTS core schema and generates complete, valid sample payloads for all API actions given a use case description. Detects when domain-specific custom schemas are needed and maps them correctly. Covers retail, food & beverage, grocery, EV charging, energy (P2P trading, demand flex), and data marketplace (DDM) domains.'
 metadata:
   tags: beckn,protocol,payload,api,schema,retail,food,energy,ev-charging,p2p-trading,demand-flex,data-marketplace,ddm,deg
 ---

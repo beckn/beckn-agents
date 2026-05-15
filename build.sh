@@ -10,6 +10,12 @@ extract_frontmatter_field() {
   grep "^${field}:" "$file" | head -1 | sed "s/^${field}: *//"
 }
 
+# Wraps a string in single quotes for safe YAML emission.
+# Single quotes inside the value are escaped by doubling them.
+yaml_quote() {
+  echo "'$(echo "$1" | sed "s/'/\\'\\'/g")'"
+}
+
 strip_frontmatter() {
   # Drops everything between the first and second --- delimiters (inclusive)
   awk 'BEGIN{f=0} /^---/{f++; if(f==2){skip=1; next}} skip{print; skip=0; next} f>=2{print}' "$1"
@@ -34,7 +40,7 @@ for skill_dir in "$SKILLS_DIR"/*/; do
   {
     echo "---"
     echo "name: $name"
-    echo "description: $description"
+    echo "description: $(yaml_quote "$description")"
     if [ -n "$tags" ]; then
       echo "metadata:"
       echo "  tags: $tags"
@@ -68,7 +74,7 @@ for skill_dir in "$SKILLS_DIR"/*/; do
 
   {
     echo "---"
-    echo "description: $description"
+    echo "description: $(yaml_quote "$description")"
     echo "alwaysApply: false"
     echo "---"
     echo ""
