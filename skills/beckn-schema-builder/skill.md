@@ -1,7 +1,7 @@
 ---
 name: beckn-schema-builder
 version: 1.0.0
-description: Guides developers through designing and publishing Beckn 2.0 schemas — from deciding whether a new schema is needed, through authoring, to registry contribution. Covers the four core mental models: check-before-create, abstraction level, inheritance vs composition, and AI-first authoring.
+description: "Guides developers through designing and publishing Beckn 2.0 schemas — from deciding whether a new schema is needed, through authoring, to registry contribution. Covers the four core mental models: check-before-create, abstraction level, inheritance vs composition, and AI-first authoring."
 tags: [beckn, schema, design, jsonld, extension, registry, vocabulary, linked-data]
 license: MIT
 ---
