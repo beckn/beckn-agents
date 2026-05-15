@@ -1,0 +1,20 @@
+{
+  "name": "beckn-agents",
+  "description": "Beckn Protocol 2.0 skills for schema design and payload generation. Covers retail, food & beverage, grocery, EV charging, energy trading, demand flexibility, and data marketplace domains.",
+  "version": "1.0.0",
+  "author": {
+    "name": "Beckn Protocol Community",
+    "email": "community@becknprotocol.io"
+  },
+  "keywords": [
+    "beckn",
+    "protocol",
+    "schema",
+    "payload",
+    "open-commerce",
+    "energy",
+    "retail",
+    "deg",
+    "ddm"
+  ]
+}

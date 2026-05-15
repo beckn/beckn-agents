@@ -1,0 +1,2611 @@
+---
+description: Understands Beckn 2.0.0 LTS core schema and generates complete, valid sample payloads for all API actions given a use case description. Detects when domain-specific custom schemas are needed and maps them correctly. Covers retail, food & beverage, grocery, EV charging, energy (P2P trading, demand flex), and data marketplace (DDM) domains.
+alwaysApply: false
+---
+
+
+## Authoritative spec source
+
+The **canonical schema** is the `draft` branch of `protocol-specifications-v2`:
+https://github.com/beckn/protocol-specifications-v2/tree/draft — file `api/v2.0.0/beckn.yaml`
+
+Reference examples:
+- `examples/retail/food-and-beverages/IN/pizza-delivery-2.0/`
+- `examples/retail/food-and-beverages/IN/pizza-delivery/`
+
+> **CRITICAL**: DEG repo examples use an older EOS schema format with snake_case context fields
+> (`bap_id`, `transaction_id`) and `message.order`. Those formats are INVALID in v2.0.0 LTS.
+> Always use the draft spec structure with camelCase context fields.
+
+## Step 1 — Parse the use case
+
+Read the user's scenario and extract:
+
+1. **Domain** — What vertical? (`food-and-beverage`, `retail`, `energy/ev-charging`, `energy/p2p-trading`, `energy/demand-flex`, `data/ddm`, etc.)
+2. **Actors** — Who is the buyer (BAP side) and seller/provider (BPP side)?
+3. **Resource** — What good, service, or data is being exchanged?
+4. **Fulfillment type** — Physical delivery? Service? Energy transfer? Data download? API access?
+5. **Customization** — Does the buyer configure the resource (size, toppings, connector type, etc.)?
+6. **Consideration** — Payment method, currency, price structure (per-unit, per-kWh, flat, time-series)?
+7. **Special terms** — Reservations, cancellation, tracking, rating, gift, loyalty, policy-as-code?
+8. **Transaction scope** — Discovery only? Full order lifecycle? Post-fulfillment?
+
+## Step 2 — Map to the transaction lifecycle
+
+See [./references/transaction-flows.md](./references/transaction-flows.md) for full lifecycle reference by domain type.
+
+Standard lifecycle:
+```
+discover → on_discover
+select → on_select
+init → on_init
+confirm → on_confirm
+[status / on_status]*
+[update / on_update]*
+[cancel / on_cancel]?
+[track / on_track]*
+rate / on_rate
+support / on_support
+```
+
+## Step 3 — Identify custom schemas
+
+**Before proposing any new schema**, check `https://schema.beckn.io` for existing schemas.
+
+If the user has not specified a domain or schema set, **ask**:
+> "Which domain or schema set should I check for existing schemas? (e.g. retail, energy/DEG, data/DDM, mobility, healthcare — or say 'none' to skip)"
+
+Only after confirming no suitable schema exists at schema.beckn.io should you propose a new one.
+
+See [./references/custom-schemas.md](./references/custom-schemas.md) for the known catalogue.
+
+Custom schemas attach to core entities via `*Attributes` extension fields:
+
+| Extension field | Attaches to | Key types |
+|---|---|---|
+| `resourceAttributes` | Catalog `resources[]` entry | domain resource properties |
+| `offerAttributes` | Catalog `offers[]` entry | customization, pricing rules |
+| `commitmentAttributes` | `Contract.commitments[]` | line-item details, domain type |
+| `contractAttributes` | `Contract` | buyer prefs, contract-level terms |
+| `performanceAttributes` | `Contract.performance[]` | delivery, service, energy execution |
+| `considerationAttributes` | `Contract.consideration[]` | payment, price breakdown |
+| Participant direct props | `Contract.participants[]` | role-specific identity — no `participantAttributes` wrapper |
+
+For energy and data domains, see [./references/domain-schemas-energy-data.md](./references/domain-schemas-energy-data.md).
+
+## Step 4 — Generate payloads
+
+See [./references/payload-templates.md](./references/payload-templates.md) for canonical shapes.
+
+### Context block — EVERY payload (camelCase, no domain field)
+
+```json
+{
+  "context": {
+    "version": "2.0.0",
+    "action": "<action-name>",
+    "bapId": "<bap.example.com>",
+    "bapUri": "https://<bap.example.com>/beckn",
+    "bppId": "<bpp.example.com>",
+    "bppUri": "https://<bpp.example.com>/beckn",
+    "networkId": "beckn:<network-id>",
+    "transactionId": "<uuid-same-across-flow>",
+    "messageId": "<uuid-new-per-pair>",
+    "timestamp": "<ISO8601-UTC>",
+    "ttl": "PT30S"
+  }
+}
+```
+
+Rules:
+- All context fields are **camelCase** — never `bap_id`, `transaction_id` etc.
+- `bppId`/`bppUri` absent only on `discover`
+- `transactionId` same across entire discover→confirm flow
+- `messageId` new per request; callback echoes same `messageId`
+- No `domain` field — domain identity goes in `networkId` or catalog `@context`
+
+### @context / @type rule — CRITICAL
+
+> **`@context` and `@type` belong ONLY on `*Attributes` extension objects and the top-level `Contract`.**
+> Core Beckn schema objects (`Descriptor`, `Location`, `Catalog`, `Resource`, `Offer`, `Commitment`,
+> `Consideration`, `Performance`, `Participant`, `Entitlement`) are already defined by `beckn.yaml`
+> and do **NOT** need `@context`/`@type` inline in the payload.
+
+| Object | @context/@type? |
+|---|---|
+| `Contract` (top-level only) | ✅ Yes — `"@context": "https://schema.beckn.io/Contract/v2.0"` |
+| `*Attributes` (all extension bags) | ✅ Yes — specifies which domain schema |
+| Everything else (Descriptor, Location, Participant, Commitment, Consideration, Performance, Resource, Offer, Catalog, Entitlement) | ❌ No |
+
+### Catalog structure (on_discover)
+
+```
+message.catalogs[]
+  ├── id, descriptor { name, shortDesc }, bppId, bppUri, providerId
+  └── resources[]
+      ├── id, descriptor { name, shortDesc }, isActive, price { currency, value }
+      ├── provider { id, descriptor, locations[] }
+      └── resourceAttributes { @context, @type, ...domain fields }
+```
+
+Offers array under catalog: `offers[]` — each offer has `id`, `resourceIds[]`, `price`, `offerAttributes { @context, @type, ... }`
+
+### Contract structure (select → confirm)
+
+```
+message.contract
+  ├── @context: "https://schema.beckn.io/Contract/v2.0"
+  ├── @type: "beckn:Contract"
+  ├── id (UUID, assigned by BPP)
+  ├── displayId (human-readable, e.g. "ORD-20260310-001")
+  ├── status { code: DRAFT|ACTIVE|CANCELLED|COMPLETE }
+  ├── participants[] { id, displayName, telephone, email, ...role props }
+  ├── commitments[]
+  │   ├── id, status { descriptor { code } }, resources[], offer { id, resourceIds[] }
+  │   └── commitmentAttributes { @context, @type, lineId, offerId, quantity, price, resourceId, ... }
+  ├── consideration[]
+  │   ├── id, status { descriptor { code: PENDING|SETTLED|VOIDED } }
+  │   └── considerationAttributes { @context, @type, currency, value, components[] }
+  └── performance[]
+      ├── id, status { descriptor { code, name } }
+      └── performanceAttributes { @context, @type, ...domain delivery/service fields }
+```
+
+## Step 5 — Version discipline checklist
+
+Before writing any payload, confirm:
+- [ ] Context fields camelCase (`bapId` not `bap_id`, `messageId` not `message_id`)
+- [ ] No `domain` key in context
+- [ ] `version: "2.0.0"` present
+- [ ] Contract has top-level `@context: "https://schema.beckn.io/Contract/v2.0"` and `@type: "beckn:Contract"`
+- [ ] `@context`/`@type` ONLY on `*Attributes` objects and the top-level Contract — NOT on Descriptor, Location, Consideration, Commitment, Performance, Participant, Resource, Offer, Catalog, Entitlement
+- [ ] Catalog uses `resources[]` not `items[]`
+- [ ] Contract uses `performance[]` not `fulfillments[]`
+- [ ] Participants use direct props (id, displayName, telephone, email) — no `participantAttributes` wrapper
+- [ ] Consideration `components[]` has type/value/currency/description (not old `breakup[]`)
+- [ ] Status code on `on_confirm` is `ACTIVE` (not `CONFIRMED`)
+
+## Step 6 — Custom schema detection
+
+Ask yourself:
+- **Food/beverage prepared item?** → `beckn:FnBItem` in `resourceAttributes` + `commitmentAttributes`; `beckn:FnBPriceSpecification` in `considerationAttributes`
+- **F&B customizable offer?** → `beckn:FnBOffer` with `customization.groups[]` in `offerAttributes`
+- **F&B/retail delivery?** → `beckn:HyperlocalDelivery` in `performanceAttributes`
+- **Grocery item?** → `GroceryItem` schema in `resourceAttributes`
+- **EV charging station?** → `EvChargingService` in `resourceAttributes`; `EvChargingOffer` in `offerAttributes`; `EvChargingSession` in `performanceAttributes`
+- **P2P energy trade?** → `EnergyResource` in `resourceAttributes`; `EnergyTradeOffer` (with BecknTimeSeries) in `offerAttributes`; `EnergyCustomer` direct props on Participant
+- **Demand flex event?** → `DemandFlexNeed` in `resourceAttributes`; `DemandFlexBuyOffer` in `offerAttributes`
+- **Dataset/data exchange?** → `DatasetItem` in `resourceAttributes`; `DatasetFulfillment` in `performanceAttributes`
+- **New domain?** → First check `https://schema.beckn.io` for existing schemas. Ask the user which domain/schema set to search. Only propose a new schema after confirming no existing one fits.
+
+## Step 7 — Output format
+
+1. **Beckn mapping** — 2–4 sentences: BAP, BPP, resource, offer, performance, consideration
+2. **Transaction flow** — numbered list with one-line descriptions
+3. **Schema table** — which `*Attributes` schemas used and why
+4. **Payloads** — one labelled fenced JSON block per action
+5. **Schema gap analysis** — any domain data not covered by existing schemas
+
+## Reference files
+
+- [references/core-schema.md](references/core-schema.md) — Full v2.0.0 draft data model
+- [references/transaction-flows.md](references/transaction-flows.md) — Lifecycle by domain type
+- [references/custom-schemas.md](references/custom-schemas.md) — Retail + F&B schema catalogue
+- [references/domain-schemas-energy-data.md](references/domain-schemas-energy-data.md) — DEG (EV, P2P, flex) + DDM schemas
+- [references/payload-templates.md](references/payload-templates.md) — Canonical JSON shapes
+- [references/usage-guide.md](references/usage-guide.md) — Input format and examples
+
+---
+<!-- inlined reference: core-schema.md -->
+
+# Beckn 2.0.0 LTS Core Schema Reference
+
+**Source**: `protocol-specifications-v2` — **draft branch** — `api/v2.0.0/beckn.yaml`
+**Canonical examples**: `examples/retail/food-and-beverages/IN/pizza-delivery-2.0/`
+
+> Never use the main branch or older EOS-format examples. The draft branch is authoritative.
+
+---
+
+## @context / @type rule
+
+**Only two things carry `@context` and `@type` in a Beckn payload:**
+
+1. **The `Contract` object** (top-level linked-data anchor):
+   ```json
+   { "@context": "https://schema.beckn.io/Contract/v2.0", "@type": "beckn:Contract", ... }
+   ```
+
+2. **All `*Attributes` extension bags** (`resourceAttributes`, `offerAttributes`, `commitmentAttributes`, `performanceAttributes`, `considerationAttributes`, `contractAttributes`):
+   ```json
+   { "@context": "https://schema.beckn.io/FnBItem/v2.1/context.jsonld", "@type": "beckn:FnBItem", ... }
+   ```
+
+**Everything else does NOT get `@context`/`@type`:**
+`Catalog`, `Resource`, `Offer`, `Commitment`, `Consideration`, `Performance`, `Participant`, `Descriptor`, `Location`, `Entitlement` — these are all defined by `beckn.yaml` and need no inline JSON-LD annotation.
+
+---
+
+## API Actions
+
+### Discovery
+| Action | Caller | Receiver | Message |
+|---|---|---|---|
+| `discover` | BAP | CDS/BPP | `intent` (textSearch, filters, spatial) |
+| `on_discover` | BPP/CDS | BAP | `catalogs[]` |
+
+### Transaction
+| Action | Caller | Receiver | Message |
+|---|---|---|---|
+| `select` | BAP | BPP | `contract` (DRAFT, with commitments) |
+| `on_select` | BPP | BAP | `contract` (with consideration and performance) |
+| `init` | BAP | BPP | `contract` (adds full buyer participant, delivery location) |
+| `on_init` | BPP | BAP | `contract` (confirms SLA, payment terms) |
+| `confirm` | BAP | BPP | `contract` (echo of on_init, with entitlements/payment proof) |
+| `on_confirm` | BPP | BAP | `contract` (status: ACTIVE, id assigned) |
+
+### Fulfillment
+| Action | Notes |
+|---|---|
+| `status` / `on_status` | Poll or push current contract/fulfillment state |
+| `track` / `on_track` | Returns tracking URL or WebSocket endpoint |
+| `update` / `on_update` | Modify active contract. `context.try: true` for preview |
+| `cancel` / `on_cancel` | Cancel contract. `context.try: true` for cancellation terms |
+
+### Post-fulfillment
+| Action | Notes |
+|---|---|
+| `rate` / `on_rate` | Submit ratings (contract, provider, item, agent) |
+| `support` / `on_support` | Request support channels or open ticket |
+
+### Catalog management
+| Action | Notes |
+|---|---|
+| `catalog/publish` | BPP pushes catalog(s) to CDS |
+| `catalog/on_publish` | CDS returns ACCEPTED/REJECTED per catalog |
+
+---
+
+## Context object (camelCase — no exceptions)
+
+```yaml
+Context:
+  version: "2.0.0"          # always "2.0.0"
+  action: string             # exact endpoint name (discover, on_select, confirm …)
+  timestamp: date-time       # ISO 8601 UTC with Z suffix
+  messageId: uuid            # new per request; on_* callback echoes same messageId
+  transactionId: uuid        # same across entire discover→confirm flow
+  bapId: string              # BAP subscriber ID
+  bapUri: uri                # BAP callback URL
+  bppId: string              # BPP subscriber ID — ABSENT only on discover
+  bppUri: uri                # BPP request URL — ABSENT only on discover
+  networkId: string          # "beckn:<namespace>:<region>" e.g. "beckn:retail-network:in"
+  ttl: string                # ISO 8601 duration e.g. "PT30S"
+```
+
+**NEVER use**: `bap_id`, `bap_uri`, `bpp_id`, `bpp_uri`, `transaction_id`, `message_id`, `domain`
+
+---
+
+## Catalog (on_discover message body)
+
+```yaml
+Catalog:
+  "@context": "https://schema.beckn.io/"
+  "@type": "beckn:Catalog"
+  id: string
+  bppId: string              # echoed from context
+  bppUri: string             # echoed from context
+  providerId: string
+  descriptor:
+    "@context": "https://schema.beckn.io/"
+    "@type": "beckn:Descriptor"
+    name: string
+    shortDesc: string
+    thumbnailImage: uri
+  items: Item[]              # NOT "resources"
+  offers: Offer[]
+```
+
+### Item (inside catalog.items[])
+
+```yaml
+Item:
+  "@context": "https://schema.beckn.io/"
+  "@type": "beckn:Resource"
+  id: string
+  descriptor:
+    "@context": "https://schema.beckn.io/"
+    "@type": "beckn:Descriptor"
+    name: string
+    shortDesc: string
+    thumbnailImage: uri
+  provider:
+    id: string
+    descriptor: Descriptor
+    locations: Location[]
+  category: Descriptor       # codeValue field for category code
+  price:
+    currency: string         # ISO 4217
+    value: number
+  isActive: boolean
+  resourceAttributes:            # domain extension — NOT "resourceAttributes"
+    "@context": "https://schema.beckn.io/"
+    "@type": "beckn:<DomainItemType>"
+    # ... domain fields
+```
+
+### Offer (inside catalog.offers[])
+
+```yaml
+Offer:
+  "@context": "https://schema.beckn.io/"
+  "@type": "beckn:Offer" | "beckn:FnBOffer"
+  id: string
+  itemId: string
+  price:
+    currency: string
+    value: number
+  offerAttributes:           # domain extension
+    "@context": "https://schema.beckn.io/"
+    "@type": "beckn:<DomainOfferType>"
+    customization:
+      groups: CustomizationGroup[]
+```
+
+---
+
+## Contract (select → on_confirm message body)
+
+```yaml
+Contract:
+  "@context": "https://schema.beckn.io/Contract/v2.0"   # required top-level JSON-LD
+  "@type": "beckn:Contract"
+  id: string                    # uuid assigned by BPP (absent in early DRAFT)
+  displayId: string             # human-readable e.g. "DOM-BLR-20260310-001"
+  status:
+    "@context": "https://schema.beckn.io/"
+    "@type": "beckn:Descriptor"
+    code: DRAFT | ACTIVE | COMPLETE | CANCELLED
+  participants: Participant[]
+  commitments: Commitment[]
+  consideration: Consideration[]
+  performance: Performance[]    # NOT "fulfillments"
+  entitlements: Entitlement[]   # optional — payment proofs, vouchers
+```
+
+**Status transitions**:
+- `DRAFT` — during select, on_select, init, on_init, confirm
+- `ACTIVE` — on on_confirm (NOT "CONFIRMED" — use ACTIVE)
+- `COMPLETE` — after fulfillment done
+- `CANCELLED` — after cancellation
+
+### Participant
+
+Participants use multi-value `@context` and `@type` arrays. Properties are placed **directly** on the participant object — no `participantAttributes` wrapper.
+
+```yaml
+Participant:
+  "@context":                   # array of JSON-LD contexts
+    - "https://schema.beckn.io/Participant/v2.0"
+    - "https://schema.beckn.io/Consumer/v2.0"     # role-specific context
+  "@type":                      # array of types
+    - "beckn:Participant"
+    - "beckn:Consumer"          # role-specific type
+  id: string                    # e.g. user@example.com or store-id
+  displayName: string
+  telephone: string             # direct prop, no wrapper
+  email: string                 # direct prop, no wrapper
+  descriptor: Descriptor        # optional — for BPP participants
+  location: Location            # optional — for BPP participants
+  rating:                       # optional
+    ratingValue: number
+    ratingCount: integer
+```
+
+**Common participant roles**:
+- Consumer: `"https://schema.beckn.io/Consumer/v2.0"` / `"beckn:Consumer"`
+- Restaurant: `"https://schema.beckn.io/Restaurant/v2.0"` / `"beckn:Restaurant"`
+- EnergyCustomer: add EnergyCustomer context + type
+- DSO/Utility: add relevant context + type
+
+### Commitment
+
+```yaml
+Commitment:
+  "@context": "https://schema.beckn.io/"
+  "@type": "beckn:Commitment"
+  ref: string                   # item/resource ID being committed
+  commitmentAttributes:         # domain extension — contains line details
+    "@context": "https://schema.beckn.io/"
+    "@type": "beckn:<DomainCommitmentType>"
+    lineId: string              # e.g. "line-001"
+    offerId: string
+    quantity:
+      unitCode: EA | KG | KWH | UNIT
+      unitQuantity: number
+    price:
+      currency: string
+      value: number
+      components: PriceComponent[]
+    resourceId: string          # mirrors ref
+    # ... domain fields (classification, cuisine, allergenInfo, etc.)
+    item:                       # inline Item object (echoed by BPP)
+      "@context": "https://schema.beckn.io/"
+      "@type": "beckn:Resource"
+      id: string
+      descriptor: Descriptor
+      resourceAttributes: { "@context", "@type", ...domain fields }
+      price: { currency, value }
+      isActive: boolean
+    offer:                      # inline Offer object (echoed by BPP)
+      "@context": "https://schema.beckn.io/"
+      "@type": "beckn:Offer" | "beckn:FnBOffer"
+      id: string
+      itemId: string
+      offerAttributes: { "@context", "@type", customization: {...} }
+      price: { currency, value }
+```
+
+### Consideration
+
+```yaml
+Consideration:
+  "@context": "https://schema.beckn.io/"
+  "@type": "beckn:Consideration"
+  status:
+    "@context": "https://schema.beckn.io/"
+    "@type": "beckn:Descriptor"
+    code: PENDING | SETTLED | VOIDED
+  considerationAttributes:
+    "@context": "https://schema.beckn.io/"
+    "@type": "beckn:<DomainPriceType>"    # e.g. beckn:FnBPriceSpecification
+    currency: string
+    value: number                         # total amount
+    components:                           # NOT "breakup"
+      - type: BASE_ITEM | DELIVERY_FEE | TAX | DISCOUNT | PACKING_FEE | ...
+        value: number
+        currency: string
+        description: string
+```
+
+### Fulfillment
+
+```yaml
+Fulfillment:
+  "@context": "https://schema.beckn.io/"
+  "@type": "beckn:Fulfillment"
+  id: string
+  status:
+    "@context": "https://schema.beckn.io/"
+    "@type": "beckn:Descriptor"
+    name: string                # human-readable e.g. "Order Received"
+    shortDesc: string
+  performanceAttributes:        # NOT "performanceAttributes"
+    "@context": "https://schema.beckn.io/"
+    "@type": "beckn:<FulfillmentType>"   # e.g. beckn:HyperlocalDelivery
+    # ... fulfillment-type fields
+```
+
+**HyperlocalDelivery** (food & retail delivery):
+```yaml
+HyperlocalDelivery:
+  "@type": "beckn:HyperlocalDelivery"
+  pickupLocation: Location
+  deliveryLocation: Location
+  itemsShipped:
+    - "@context": [...multi-context array...]
+      "@type": [...multi-type array...]
+      itemId: string
+      offerId: string
+      quantity: QuantityMeasure
+      lineId: string
+```
+
+### Entitlement
+
+```yaml
+Entitlement:
+  descriptor:
+    "@context": "https://schema.beckn.io/"
+    "@type": "beckn:Descriptor"
+    name: string
+    shortDesc: string
+  type: PAYMENT_PROOF | VOUCHER | COUPON
+  id: string                   # e.g. UTR reference number
+```
+
+---
+
+## Common sub-schemas
+
+### Descriptor
+```yaml
+Descriptor:
+  "@context": "https://schema.beckn.io/"
+  "@type": "beckn:Descriptor"
+  name: string
+  shortDesc: string
+  longDesc: string
+  code: string           # machine-readable status enum
+  thumbnailImage: uri
+```
+
+### QuantityMeasure
+```yaml
+QuantityMeasure:
+  unitCode: EA | KG | L | M | BOX | GRAM | ML | KWH | UNIT
+  unitQuantity: number
+```
+
+### Location
+```yaml
+Location:
+  "@context": "https://schema.beckn.io/"
+  "@type": "beckn:Location"
+  id: string
+  geo:
+    type: "Point"
+    coordinates: [longitude, latitude]
+  address:
+    streetAddress: string
+    addressLocality: string    # city
+    addressRegion: string      # state
+    postalCode: string
+    addressCountry: string     # ISO-3166-1 alpha-2
+```
+
+### Intent (discover)
+```yaml
+Intent:
+  textSearch: string           # free-text query
+  filters:                     # JSONPath RFC 9535
+    type: "jsonpath"
+    expression: string         # e.g. "$[?(@.resourceAttributes.food.classification == 'VEG')]"
+  spatial:
+    - op: S_DWITHIN
+      targets: string          # JSONPath to geo field
+      geometry:
+        type: "Point"
+        coordinates: [lng, lat]
+      distanceMeters: number
+```
+
+### Tracking (on_track)
+```yaml
+Tracking:
+  id: string
+  url: uri
+  websocketUrl: uri
+  status:
+    "@context": "https://schema.beckn.io/"
+    "@type": "beckn:Descriptor"
+    code: ACTIVE | INACTIVE
+```
+
+---
+
+## ACK / NACK
+
+All Beckn actions return a synchronous ACK before the async callback:
+
+```json
+{ "message": { "ack": { "status": "ACK" } } }
+```
+
+Error NACK:
+```json
+{ "message": { "ack": { "status": "NACK" } }, "error": { "code": "...", "message": "..." } }
+```
+
+---
+
+## Version discipline — quick checklist
+
+| Check | Correct | Wrong |
+|---|---|---|
+| Context fields | camelCase (`bapId`) | snake_case (`bap_id`) |
+| Catalog items | `resources[]` | `items[]` |
+| Resource attributes | `resourceAttributes` | `itemAttributes` |
+| Contract execution | `performance[]` | `fulfillments[]` |
+| Execution attributes | `performanceAttributes` | `fulfillmentAttributes` |
+| on_confirm status | `code: "ACTIVE"` | `code: "CONFIRMED"` |
+| Participant props | Direct on object | Inside `participantAttributes` wrapper |
+| Consideration total | `value` + `components[]` | `totalAmount` + `breakup[]` |
+| Contract JSON-LD | Top-level `@context` + `@type` on contract | Absent |
+
+---
+<!-- inlined reference: custom-schemas.md -->
+
+# Beckn Custom Schema Catalogue
+
+Custom schemas extend core Beckn entities via `*Attributes` extension fields.
+Each uses JSON-LD (`@context` + `@type`) for semantic interoperability.
+
+**Container field names** (v2.0.0 LTS draft):
+- `resourceAttributes` on `Resource` in catalog
+- `offerAttributes` on `Offer`
+- `commitmentAttributes` on `Commitment`
+- `performanceAttributes` on `Performance`
+- `considerationAttributes` on `Consideration`
+- `contractAttributes` on `Contract`
+- Participant role props directly on `Participant` — no `participantAttributes` wrapper
+
+**`@context`/`@type` rule**: Only `*Attributes` bags and the top-level `Contract` carry these. All other core objects (Descriptor, Location, Commitment envelope, Consideration envelope, Performance envelope, Resource envelope, Catalog, Participant, Entitlement) do NOT get `@context`/`@type`.
+
+---
+
+## Schema detection decision tree
+
+```
+Food/beverage (pizza, burger, meal, snack)?
+  → FnBItem (resourceAttributes + commitmentAttributes)
+  → FnBOffer if customizable (offerAttributes)
+  → HyperlocalDelivery (performanceAttributes) for delivery
+  → FnBPriceSpecification (considerationAttributes)
+
+Grocery item (vegetables, packaged goods)?
+  → GroceryItem (resourceAttributes)
+
+Home/kitchen/furniture?
+  → HomeAndKitchenItem (resourceAttributes)
+
+EV charging?
+  → EvChargingService (resourceAttributes)
+  → EvChargingOffer (offerAttributes)
+  → EvChargingSession (performanceAttributes)
+
+P2P energy trade?
+  → EnergyResource (resourceAttributes)
+  → EnergyTradeOffer (offerAttributes)
+  → EnergyCustomer direct props on Participant
+
+Demand flex event?
+  → DemandFlexNeed (resourceAttributes)
+  → DemandFlexBuyOffer (offerAttributes)
+
+Dataset/data exchange?
+  → DatasetItem (resourceAttributes)
+  → DatasetFulfillment (performanceAttributes)
+
+None of the above?
+  → Propose NEW custom schema (see "New Schema Pattern")
+```
+
+---
+
+## Retail / F&B Schemas
+
+### 1. FnBItem (Food & Beverage Item)
+
+**Attaches to**: `Item.resourceAttributes` and `Commitment.commitmentAttributes`
+**Context URI**: `https://schema.beckn.io/`
+**Type**: `beckn:FnBItem`
+**Use when**: Resource is a prepared food or beverage item
+
+```json
+"resourceAttributes": {
+  "@context": "https://schema.beckn.io/",
+  "@type": "beckn:FnBItem",
+  "classification": "VEG",
+  "cuisine": "Italian",
+  "allergenInfo": {
+    "contains": ["GLUTEN", "MILK", "EGGS"]
+  },
+  "preparation": {
+    "instructions": "Best served hot",
+    "storage": "Do not refrigerate. Consume immediately.",
+    "shelfLife": "PT30M"
+  }
+}
+```
+
+**In commitmentAttributes** (also includes line-item fields):
+```json
+"commitmentAttributes": {
+  "@context": "https://schema.beckn.io/",
+  "@type": "beckn:FnBItem",
+  "lineId": "line-001",
+  "offerId": "offer-margherita-regular",
+  "quantity": { "unitCode": "EA", "unitQuantity": 2 },
+  "price": {
+    "currency": "INR",
+    "value": 790,
+    "components": [
+      { "type": "BASE_ITEM", "value": 395, "currency": "INR", "description": "Regular Margherita" }
+    ]
+  },
+  "resourceId": "item-veg-margherita",
+  "classification": "VEG",
+  "cuisine": "Italian",
+  "allergenInfo": { "contains": ["GLUTEN", "MILK", "EGGS"] }
+}
+```
+
+**Key fields**:
+```yaml
+classification: VEG | NON_VEG | VEGAN | EGG | JAIN
+cuisine: string                  # Italian, Indian, Chinese …
+allergenInfo:
+  contains: [GLUTEN, DAIRY, NUTS, SOY, EGGS, SHELLFISH, SESAME, SULFITES]
+preparation:
+  instructions: string
+  storage: string
+  shelfLife: string              # ISO 8601 duration e.g. "PT30M"
+```
+
+---
+
+### 2. FnBOffer (Food & Beverage Offer)
+
+**Attaches to**: `Offer.offerAttributes`
+**Context URI**: `https://schema.beckn.io/`
+**Type**: `beckn:FnBOffer`
+**Use when**: Food offer has customization options (size, toppings, sauces, extras)
+
+```json
+"offerAttributes": {
+  "@context": "https://schema.beckn.io/",
+  "@type": "beckn:FnBOffer",
+  "customization": {
+    "groups": [
+      {
+        "code": "SIZE",
+        "name": "Choose Size",
+        "selection": "SINGLE_REQUIRED",
+        "options": [
+          { "code": "REGULAR", "name": "Regular (7-inch)", "priceDelta": { "type": "FIXED", "value": 0 } },
+          { "code": "MEDIUM",  "name": "Medium (10-inch)", "priceDelta": { "type": "FIXED", "value": 100 } },
+          { "code": "LARGE",   "name": "Large (12-inch)",  "priceDelta": { "type": "FIXED", "value": 200 } }
+        ]
+      },
+      {
+        "code": "TOPPINGS",
+        "name": "Add Toppings",
+        "selection": "MULTIPLE_OPTIONAL",
+        "minSelections": 0,
+        "maxSelections": 3,
+        "options": [
+          { "code": "ONION",    "name": "Onion",    "priceDelta": { "type": "FIXED", "value": 30 } },
+          { "code": "CAPSICUM", "name": "Capsicum", "priceDelta": { "type": "FIXED", "value": 30 } },
+          { "code": "MUSHROOM", "name": "Mushroom", "priceDelta": { "type": "FIXED", "value": 35 } },
+          { "code": "PANEER",   "name": "Paneer",   "priceDelta": { "type": "FIXED", "value": 60 } }
+        ]
+      }
+    ]
+  }
+}
+```
+
+**CustomizationGroup fields**:
+```yaml
+code: string                    # SIZE, TOPPINGS, SAUCE, CRUST, EXTRAS …
+name: string
+selection: SINGLE_REQUIRED | SINGLE_OPTIONAL | MULTIPLE_OPTIONAL
+minSelections: integer
+maxSelections: integer
+options:
+  - code: string
+    name: string
+    priceDelta:
+      type: FIXED | PERCENTAGE
+      value: number             # positive = surcharge, negative = discount
+```
+
+---
+
+### 3. FnBPriceSpecification (Food & Beverage Consideration)
+
+**Attaches to**: `Consideration.considerationAttributes`
+**Context URI**: `https://schema.beckn.io/`
+**Type**: `beckn:FnBPriceSpecification`
+**Use when**: F&B monetary payment with price breakdown
+
+```json
+"considerationAttributes": {
+  "@context": "https://schema.beckn.io/",
+  "@type": "beckn:FnBPriceSpecification",
+  "currency": "INR",
+  "value": 929,
+  "components": [
+    { "type": "BASE_ITEM",   "value": 790, "currency": "INR", "description": "2x Regular Margherita" },
+    { "type": "BASE_ITEM",   "value": 99,  "currency": "INR", "description": "1x Garlic Breadsticks" },
+    { "type": "DELIVERY_FEE","value": 40,  "currency": "INR", "description": "Delivery fee" }
+  ]
+}
+```
+
+**Component types**: `BASE_ITEM`, `DELIVERY_FEE`, `TAX`, `PACKING_FEE`, `DISCOUNT`, `TIP`, `SURGE`, `CONVENIENCE_FEE`, `LOYALTY_DISCOUNT`
+
+---
+
+### 4. HyperlocalDelivery (Fulfillment)
+
+**Attaches to**: `Fulfillment.performanceAttributes`
+**Context URI**: `https://schema.beckn.io/`
+**Type**: `beckn:HyperlocalDelivery`
+**Use when**: Physical delivery of food/retail from store to buyer
+
+```json
+"performanceAttributes": {
+  "@context": "https://schema.beckn.io/",
+  "@type": "beckn:HyperlocalDelivery",
+  "pickupLocation": {
+    "@context": "https://schema.beckn.io/",
+    "@type": "beckn:Location",
+    "id": "store-id",
+    "geo": { "type": "Point", "coordinates": [77.5946, 12.9716] },
+    "address": {
+      "streetAddress": "No. 15, Ground Floor, MG Road",
+      "addressLocality": "Bangalore",
+      "addressRegion": "Karnataka",
+      "postalCode": "560001",
+      "addressCountry": "IN"
+    }
+  },
+  "deliveryLocation": {
+    "@context": "https://schema.beckn.io/",
+    "@type": "beckn:Location",
+    "geo": { "type": "Point", "coordinates": [77.5946, 12.9716] },
+    "address": {
+      "streetAddress": "Apt 204, Sunrise Heights",
+      "addressLocality": "Bangalore",
+      "addressRegion": "Karnataka",
+      "postalCode": "560001",
+      "addressCountry": "IN"
+    }
+  },
+  "itemsShipped": [
+    {
+      "@context": ["https://schema.beckn.io/Resource/v2.0", "https://schema.beckn.io/FoodAndBeverageItem/v2.0"],
+      "@type": ["beckn:Resource", "beckn:FnBItem"],
+      "itemId": "item-veg-margherita",
+      "offerId": "offer-margherita-regular",
+      "quantity": { "unitCode": "EA", "unitQuantity": 2 },
+      "lineId": "line-001"
+    }
+  ]
+}
+```
+
+---
+
+### 5. GroceryItem
+
+**Attaches to**: `Item.resourceAttributes`
+**Context URI**: `https://schema.beckn.io/GroceryItem/v2.1/context.jsonld`
+**Type**: `groc:GroceryItemAttributes`
+**Use when**: Fresh produce or packaged grocery item
+
+```yaml
+type: FRESH | PACKAGED
+brand: string
+sku: string
+weight: { unitQuantity: number, unitCode: KG | GRAM }
+nutritionFacts:
+  servingSize: string
+  calories: number
+  protein: number
+  carbohydrates: number
+  fat: number
+expiryDate: date-time
+organic: boolean
+```
+
+---
+
+### 6. HomeAndKitchenItem
+
+**Attaches to**: `Item.resourceAttributes`
+**Context URI**: `https://schema.beckn.io/HomeAndKitchenItem/v2.1/context.jsonld`
+**Type**: `hkr:HomeAndKitchenItemAttributes`
+**Use when**: Furniture, appliance, kitchenware, home goods
+
+```yaml
+dimensions:
+  length: { unitQuantity, unitCode }
+  width: { unitQuantity, unitCode }
+  height: { unitQuantity, unitCode }
+  weight: { unitQuantity, unitCode }
+material: string
+color: string
+assemblyRequired: boolean
+warrantyPeriod: string         # ISO 8601 duration
+installationAvailable: boolean
+```
+
+---
+
+### 7. RetailOffer (base discount/availability)
+
+**Attaches to**: `Offer.offerAttributes`
+**Context URI**: `https://schema.beckn.io/RetailOffer/v2.1/context.jsonld`
+**Type**: `rco:RetailOfferAttributes`
+**Use when**: Standard retail offer with discounts or availability constraints
+
+```yaml
+discountType: FLAT | PERCENTAGE | BOGO | BUNDLE
+discountValue: number
+stockAvailability: number
+minOrderQuantity: number
+maxOrderQuantity: number
+unitOfMeasure: string           # EA, KG, L …
+```
+
+---
+
+## Schema selection summary
+
+| Use case signal | Schema | Attaches to |
+|---|---|---|
+| Prepared food/meal | FnBItem | Item.resourceAttributes + Commitment.commitmentAttributes |
+| Food with size/topping options | FnBOffer | Offer.offerAttributes |
+| F&B price with delivery fee | FnBPriceSpecification | Consideration.considerationAttributes |
+| Physical food/retail delivery | HyperlocalDelivery | Fulfillment.performanceAttributes |
+| Grocery (fresh veg, packaged) | GroceryItem | Item.resourceAttributes |
+| Furniture/appliances/home goods | HomeAndKitchenItem | Item.resourceAttributes |
+| Retail discount/availability | RetailOffer | Offer.offerAttributes |
+
+For DEG (EV charging, P2P trading, demand flex) and DDM (data exchange) schemas,
+see [domain-schemas-energy-data.md](domain-schemas-energy-data.md).
+
+---
+
+## New schema pattern
+
+**Before proposing a new schema, always:**
+
+1. Check `https://schema.beckn.io` for existing schemas matching the domain
+2. If the user has not specified a domain or schema set, ask:
+   > "Which domain or schema catalogue should I check? (e.g. retail, energy/DEG, data/DDM, mobility, healthcare, or say 'none')"
+3. Only propose a new schema after confirming no existing schema at schema.beckn.io covers the required fields
+
+When a gap is confirmed, propose using this pattern:
+
+```yaml
+# Proposed: <DomainName><EntityType>Attributes
+
+openapi: 3.1.1
+info:
+  title: <Domain> — <EntityType> Attributes (v1.0)
+
+components:
+  schemas:
+    <DomainName><EntityType>Attributes:
+      type: object
+      additionalProperties: false
+      x-beckn-container: <entityType>Attributes   # e.g. resourceAttributes, performanceAttributes
+      x-jsonld:
+        "@context": "https://schema.beckn.io/<DomainName><EntityType>/v1.0/context.jsonld"
+        "@type": "<prefix>:<DomainName><EntityType>Attributes"
+      properties:
+        <property>:
+          type: string | number | boolean | object | array
+          description: <what this captures>
+```
+
+**Naming**: class names PascalCase, URI pattern `https://schema.beckn.io/<Name>/v<version>/context.jsonld`
+
+**In the payload**, the new schema only appears inside its `*Attributes` bag:
+```json
+"resourceAttributes": {
+  "@context": "https://schema.beckn.io/<DomainName><EntityType>/v1.0/context.jsonld",
+  "@type": "<prefix>:<DomainName><EntityType>Attributes",
+  "<property>": "<value>"
+}
+```
+
+---
+<!-- inlined reference: domain-schemas-energy-data.md -->
+
+# DEG and DDM Domain Schema Reference
+
+Schemas for the Digital Energy Grid (DEG) sub-domains and the Decentralized Data Marketplace (DDM).
+
+> **CRITICAL**: DEG `examples/ev-charging/v2/` uses an older EOS format (`bap_id`, `message.order`, `beckn:Order`).
+> Those example payloads are INVALID for v2.0.0 LTS draft.
+> Only use the DEG/DDM **specification/schema/** YAML files for domain field definitions.
+> Always embed domain attributes inside the v2.0.0 draft core structure.
+
+---
+
+## DEG sub-domains
+
+| Sub-domain | Flow type | Key schemas |
+|---|---|---|
+| EV charging | Session-based charging | EvChargingService, EvChargingOffer, EvChargingSession |
+| P2P energy trade | Day-ahead slot trading | EnergyResource, EnergyTradeOffer |
+| Demand flex | Utility DR event | DemandFlexNeed, DemandFlexBuyOffer |
+
+---
+
+## EV Charging
+
+### EvChargingService
+**Attaches to**: `Item.resourceAttributes`
+**@type**: `beckn:EvChargingService`
+**Use when**: Item is an EV charging connector/station
+
+```json
+"resourceAttributes": {
+  "@context": "https://schema.beckn.io/EvChargingService/v2.0/context.jsonld",
+  "@type": "beckn:EvChargingService",
+  "evseId": "IN*ECO*01*CCS2*A",
+  "connectorType": "CCS2",
+  "maxPowerKW": 60,
+  "minPowerKW": 5,
+  "reservationSupported": true,
+  "chargingStation": {
+    "id": "IN-ECO-MDY-STATION-01",
+    "serviceLocation": {
+      "geo": { "type": "Point", "coordinates": [<lng>, <lat>] },
+      "address": {
+        "streetAddress": "<address>",
+        "addressLocality": "<city>",
+        "addressRegion": "<state>",
+        "postalCode": "<pin>",
+        "addressCountry": "IN"
+      }
+    }
+  },
+  "amenityFeature": ["WIFI", "RESTROOM", "PARKING"],
+  "vehicleType": ["CAR", "2_WHEELER", "3_WHEELER"],
+  "networkOperator": { "id": "<operator-id>", "name": "<Operator Name>" }
+}
+```
+
+**Key fields**:
+```yaml
+evseId: string                 # OCPI/Hubject style e.g. IN*ECO*01*CCS2*A
+connectorType: CCS2 | Type2 | CHAdeMO | GB_T
+maxPowerKW: number             # 1–500 kW
+minPowerKW: number
+reservationSupported: boolean
+chargingStation:
+  id: string
+  serviceLocation: Location
+amenityFeature: [WIFI, RESTROOM, PARKING, CAFE, ...]
+vehicleType: [CAR, 2_WHEELER, 3_WHEELER, BUS]
+networkOperator: { id, name }
+```
+
+---
+
+### EvChargingOffer
+**Attaches to**: `Offer.offerAttributes`
+**@type**: `beckn:EvChargingOffer`
+**Use when**: Pricing tariff for an EV charging session
+
+```json
+"offerAttributes": {
+  "@context": "https://schema.beckn.io/EvChargingOffer/v2.0/context.jsonld",
+  "@type": "beckn:EvChargingOffer",
+  "tariffModel": "PER_KWH",
+  "pricePerKwh": 12.50,
+  "idleFeePolicy": {
+    "graceMinutes": 15,
+    "feePerMinute": 1.00,
+    "currency": "INR"
+  },
+  "buyerFinderFee": {
+    "feeType": "PERCENTAGE",
+    "feeValue": 2.0
+  }
+}
+```
+
+**Key fields**:
+```yaml
+tariffModel: PER_KWH | PER_MINUTE | FLAT | PER_SESSION
+pricePerKwh: number
+pricePerMinute: number
+flatFee: number
+idleFeePolicy:
+  graceMinutes: integer
+  feePerMinute: number
+  currency: string
+buyerFinderFee:
+  feeType: PERCENTAGE | AMOUNT
+  feeValue: number
+```
+
+---
+
+### EvChargingSession
+**Attaches to**: `Fulfillment.performanceAttributes`
+**@type**: `beckn:EvChargingSession`
+**Use when**: Active or completed EV charging session tracking
+
+```json
+"performanceAttributes": {
+  "@context": "https://schema.beckn.io/EvChargingSession/v2.0/context.jsonld",
+  "@type": "beckn:EvChargingSession",
+  "sessionStatus": "ACTIVE",
+  "connectorStatus": "PREPARING",
+  "startTime": "2026-04-10T09:00:00Z",
+  "endTime": null,
+  "meteredEnergyKwh": 12.4,
+  "sessionDurationMinutes": 45,
+  "totalCost": {
+    "currency": "INR",
+    "value": 155.00
+  },
+  "chargingTelemetry": [
+    {
+      "timestamp": "2026-04-10T09:00:00Z",
+      "powerKw": 48.5,
+      "energyKwh": 0.0,
+      "stateOfCharge": 22
+    }
+  ],
+  "trackingUrl": "https://<bpp>/ev/session/<session-id>/track"
+}
+```
+
+**Key fields**:
+```yaml
+sessionStatus: PENDING | ACTIVE | STOP | COMPLETED | INTERRUPTED
+connectorStatus: AVAILABLE | PREPARING | UNAVAILABLE
+startTime: date-time
+endTime: date-time
+meteredEnergyKwh: number
+sessionDurationMinutes: integer
+totalCost: { currency, value }
+chargingTelemetry:
+  - timestamp: date-time
+    powerKw: number
+    energyKwh: number           # cumulative
+    stateOfCharge: integer      # battery %
+trackingUrl: uri
+```
+
+---
+
+## P2P Energy Trading
+
+### EnergyResource
+**Attaches to**: `Item.resourceAttributes`
+**@type**: `beckn:EnergyResource`
+**Use when**: Item is an energy resource (solar, battery, grid)
+
+```json
+"resourceAttributes": {
+  "@context": "https://schema.beckn.io/EnergyResource/v2.0/context.jsonld",
+  "@type": "beckn:EnergyResource",
+  "sourceType": "SOLAR",
+  "meterId": "der://meter/100200300"
+}
+```
+
+**Key fields**:
+```yaml
+sourceType: SOLAR | BATTERY | GRID | HYBRID | RENEWABLE
+meterId: string                  # DER address format der://meter/{id}
+```
+
+---
+
+### EnergyTradeOffer
+**Attaches to**: `Offer.offerAttributes`
+**@type**: `beckn:EnergyTradeOffer`
+**Use when**: Day-ahead P2P energy trade with slot-based pricing
+
+Uses `BecknTimeSeries` for compact representation of 24-slot schedules.
+
+```json
+"offerAttributes": {
+  "@context": "https://schema.beckn.io/EnergyTradeOffer/v2.0/context.jsonld",
+  "@type": "beckn:EnergyTradeOffer",
+  "validityWindow": {
+    "startDate": "2026-04-10T00:00:00Z",
+    "endDate": "2026-04-10T10:00:00Z"
+  },
+  "inputs": [
+    {
+      "role": "seller",
+      "participantId": "<seller-meter-id>",
+      "offerTimeseries": {
+        "intervalPeriod": {
+          "start": "2026-04-11T00:00:00Z",
+          "duration": "PT1H"
+        },
+        "intervals": [
+          { "id": 0, "payloads": [
+            { "type": "PRICE_PER_KWH", "value": 6.50, "currency": "INR" },
+            { "type": "AVAILABLE_QTY",  "value": 50,   "unit": "KWH" }
+          ]},
+          { "id": 1, "payloads": [
+            { "type": "PRICE_PER_KWH", "value": 5.00, "currency": "INR" },
+            { "type": "AVAILABLE_QTY",  "value": 45,   "unit": "KWH" }
+          ]}
+        ]
+      }
+    },
+    {
+      "role": "buyer",
+      "participantId": "<buyer-meter-id>",
+      "bidTimeseries": {
+        "intervalPeriod": {
+          "start": "2026-04-11T00:00:00Z",
+          "duration": "PT1H"
+        },
+        "intervals": [
+          { "id": 0, "payloads": [
+            { "type": "REQUESTED_QTY", "value": 30, "unit": "KWH" }
+          ]}
+        ]
+      }
+    }
+  ],
+  "contractTerms": {
+    "@context": "https://schema.beckn.io/DEGContract/v2.0/context.jsonld",
+    "@type": "beckn:DEGContract",
+    "policyUrl": "https://policies.deg.example/p2p-trade-v1.rego",
+    "policyHash": "sha256:<hash>"
+  }
+}
+```
+
+**Key fields**:
+```yaml
+validityWindow: TimePeriod      # offer acceptance window
+inputs:
+  - role: seller | buyer
+    participantId: string        # meter ID
+    offerTimeseries: BecknTimeSeries   # seller: PRICE_PER_KWH + AVAILABLE_QTY
+    bidTimeseries: BecknTimeSeries     # buyer: REQUESTED_QTY
+contractTerms:
+  "@context", "@type": DEGContract
+  policyUrl: uri                 # Rego policy URL
+  policyHash: string             # sha256 for integrity
+
+BecknTimeSeries:
+  intervalPeriod:
+    start: date-time             # first slot start
+    duration: string             # ISO 8601 e.g. PT1H
+  intervals:
+    - id: integer                # 0-based slot index
+      payloads:
+        - type: string           # PRICE_PER_KWH | AVAILABLE_QTY | REQUESTED_QTY
+          value: number
+          currency: string       # for PRICE types
+          unit: string           # for QTY types (KWH, KW, ...)
+```
+
+---
+
+### EnergyCustomer (Participant)
+**Attaches to**: `Participant` (direct props — no wrapper)
+**Use when**: Participant in a P2P energy trade has meter/utility identity
+
+```json
+{
+  "@context": [
+    "https://schema.beckn.io/Participant/v2.0",
+    "https://schema.beckn.io/EnergyCustomer/v2.0"
+  ],
+  "@type": ["beckn:Participant", "beckn:EnergyCustomer"],
+  "id": "der://meter/100200300",
+  "displayName": "Arjun Sharma",
+  "meterId": "der://meter/100200300",
+  "sanctionedLoad": 10.0,
+  "utilityCustomerId": "BESCOM-2024-001234",
+  "utilityId": "BESCOM"
+}
+```
+
+**Key fields**:
+```yaml
+meterId: string                  # DER address der://meter/{id}
+sanctionedLoad: number           # kW
+utilityCustomerId: string
+utilityId: string
+```
+
+---
+
+## Demand Flex
+
+### DemandFlexNeed
+**Attaches to**: `Item.resourceAttributes`
+**@type**: `beckn:DemandFlexNeed`
+**Use when**: Utility publishes a demand flex event for aggregators/prosumers
+
+```json
+"resourceAttributes": {
+  "@context": "https://schema.beckn.io/DemandFlexNeed/v2.0/context.jsonld",
+  "@type": "beckn:DemandFlexNeed",
+  "direction": "REDUCE",
+  "eventWindow": {
+    "startDate": "2026-04-10T14:00:00Z",
+    "endDate": "2026-04-10T16:00:00Z"
+  },
+  "capacityType": "CURTAILMENT",
+  "maxCapacityKw": 500,
+  "location": {
+    "type": "Polygon",
+    "coordinates": [[[<lng1>,<lat1>],[<lng2>,<lat2>],[<lng3>,<lat3>],[<lng1>,<lat1>]]]
+  }
+}
+```
+
+**Key fields**:
+```yaml
+direction: INCREASE | REDUCE
+eventWindow:
+  startDate: date-time           # UTC with Z suffix
+  endDate: date-time
+capacityType: CURTAILMENT | SHIFT | GENERATION
+maxCapacityKw: number
+location: GeoJSON Point or Polygon
+```
+
+---
+
+### DemandFlexBuyOffer
+**Attaches to**: `Offer.offerAttributes`
+**@type**: `beckn:DemandFlexBuyOffer`
+**Use when**: Offer for participating in a demand flex event
+
+```json
+"offerAttributes": {
+  "@context": "https://schema.beckn.io/DemandFlexBuyOffer/v2.0/context.jsonld",
+  "@type": "beckn:DemandFlexBuyOffer",
+  "incentivePerKwh": 15.00,
+  "currency": "INR",
+  "minCommitmentKw": 5.0,
+  "maxCommitmentKw": 200.0,
+  "baselineMethodology": "ROLLING_7_DAY_AVERAGE",
+  "contractTerms": {
+    "@context": "https://schema.beckn.io/DEGContract/v2.0/context.jsonld",
+    "@type": "beckn:DEGContract",
+    "policyUrl": "https://policies.deg.example/demand-flex-v1.rego",
+    "policyHash": "sha256:<hash>"
+  }
+}
+```
+
+**Key fields**:
+```yaml
+incentivePerKwh: number
+currency: string
+minCommitmentKw: number
+maxCommitmentKw: number
+baselineMethodology: ROLLING_7_DAY_AVERAGE | AMI_BASELINE | ...
+contractTerms: DEGContract with Rego policy URL
+```
+
+---
+
+## DDM — Decentralized Data Marketplace
+
+### DatasetItem
+**Attaches to**: `Item.resourceAttributes`
+**@type**: `"DatasetItem"` (schema.org Dataset + Beckn extensions)
+**Use when**: Item is a dataset product
+
+```json
+"resourceAttributes": {
+  "@context": "https://schema.beckn.io/DatasetItem/v1/context.jsonld",
+  "@type": "DatasetItem",
+  "schema:identifier": "dataset-ems-hourly-2025",
+  "schema:name": "EMS Hourly Energy Data 2025",
+  "schema:description": "Hourly energy consumption data from 500 commercial buildings",
+  "schema:temporalCoverage": "2025-01-01/2025-12-31",
+  "schema:spatialCoverage": "Bangalore Metropolitan Region",
+  "schema:license": "CC-BY-4.0",
+  "schema:variableMeasured": ["energy_consumption_kwh", "peak_demand_kw"],
+  "schema:measurementTechnique": "Smart meter AMI readings",
+  "qualityFlags": {
+    "gapFilledPercent": 1.2,
+    "latencyMinutes": 60
+  },
+  "accessMethod": "DOWNLOAD",
+  "schema:distribution": [
+    {
+      "schema:encodingFormat": "text/csv",
+      "schema:contentSize": "2.3 GB"
+    },
+    {
+      "schema:encodingFormat": "application/x-parquet"
+    }
+  ]
+}
+```
+
+**Key fields**:
+```yaml
+schema:identifier: string
+schema:name: string
+schema:description: string
+schema:temporalCoverage: string         # ISO 8601 interval or text
+schema:spatialCoverage: string | object
+schema:license: string                  # SPDX or URL
+schema:variableMeasured: string[]
+schema:measurementTechnique: string
+qualityFlags:
+  gapFilledPercent: number
+  latencyMinutes: integer
+accessMethod: INLINE | DOWNLOAD | DATA_ENCLAVE | OFF_CHANNEL | API | STREAM
+schema:distribution: array
+```
+
+---
+
+### DatasetFulfillment
+**Attaches to**: `Fulfillment.performanceAttributes`
+**@type**: `"DatasetFulfillment"`
+**Use when**: Dataset access provisioning after order confirmation
+
+```json
+"performanceAttributes": {
+  "@context": "https://schema.beckn.io/DatasetFulfillment/v1/context.jsonld",
+  "@type": "DatasetFulfillment",
+  "fulfillment:accessMethod": "DOWNLOAD",
+  "fulfillment:accessUrl": "https://data.example.com/datasets/ems-hourly-2025/download",
+  "fulfillment:accessStart": "2026-04-10T00:00:00Z",
+  "fulfillment:accessEnd": "2026-07-10T00:00:00Z",
+  "fulfillment:format": "Parquet",
+  "fulfillment:fileSizeBytes": 2468000000,
+  "fulfillment:maxDownloads": 5,
+  "fulfillment:downloadsUsed": 0,
+  "fulfillment:termsUrl": "https://data.example.com/terms/ems-hourly-2025",
+  "fulfillment:attributionText": "Source: EMS Analytics Platform, 2025",
+  "fulfillment:supportEmail": "data-support@example.com"
+}
+```
+
+**Key fields**:
+```yaml
+fulfillment:accessMethod: DOWNLOAD | API | STREAM | DATA_ROOM | SFTP
+fulfillment:accessUrl: uri
+fulfillment:accessStart: date-time
+fulfillment:accessEnd: date-time
+fulfillment:format: string          # Parquet, CSV, JSON, GeoJSON …
+fulfillment:fileSizeBytes: integer
+fulfillment:maxDownloads: integer
+fulfillment:downloadsUsed: integer
+fulfillment:termsUrl: uri
+fulfillment:attributionText: string
+fulfillment:supportEmail: email
+```
+
+---
+
+## Complete domain schema table
+
+| Domain | Schema | Attaches to |
+|---|---|---|
+| F&B prepared item | FnBItem | Item.resourceAttributes, Commitment.commitmentAttributes |
+| F&B customizable offer | FnBOffer | Offer.offerAttributes |
+| F&B price breakdown | FnBPriceSpecification | Consideration.considerationAttributes |
+| F&B/retail physical delivery | HyperlocalDelivery | Fulfillment.performanceAttributes |
+| EV charging connector | EvChargingService | Item.resourceAttributes |
+| EV charging tariff | EvChargingOffer | Offer.offerAttributes |
+| EV charging session | EvChargingSession | Fulfillment.performanceAttributes |
+| P2P energy source | EnergyResource | Item.resourceAttributes |
+| P2P day-ahead offer | EnergyTradeOffer | Offer.offerAttributes |
+| Energy buyer/seller | EnergyCustomer | Participant (direct props) |
+| Demand flex event | DemandFlexNeed | Item.resourceAttributes |
+| Demand flex incentive | DemandFlexBuyOffer | Offer.offerAttributes |
+| Dataset product | DatasetItem | Item.resourceAttributes |
+| Dataset access | DatasetFulfillment | Fulfillment.performanceAttributes |
+
+---
+<!-- inlined reference: payload-templates.md -->
+
+# Canonical Payload Templates
+
+Based on: `protocol-specifications-v2` draft branch canonical pizza-delivery-2.0 examples.
+Placeholders use `<angle-bracket>` notation. Replace with scenario-specific values.
+
+---
+
+## discover
+
+**Caller**: BAP → CDS/BPP  
+**Purpose**: Broadcast intent to find catalogs  
+**Note**: `bppId`/`bppUri` are absent (broadcast)
+
+```json
+{
+  "context": {
+    "version": "2.0.0",
+    "action": "discover",
+    "bapId": "food-app.example.com",
+    "bapUri": "https://food-app.example.com/beckn",
+    "networkId": "beckn:retail-network:in",
+    "ttl": "PT30S",
+    "messageId": "<uuid-new>",
+    "timestamp": "<ISO8601-UTC>",
+    "transactionId": "<uuid-new-for-flow>"
+  },
+  "message": {
+    "intent": {
+      "textSearch": "<free text e.g. 'veg pizza bangalore'>"
+    }
+  }
+}
+```
+
+With spatial filter:
+```json
+{
+  "context": { "...same, action: discover..." },
+  "message": {
+    "intent": {
+      "textSearch": "<query>",
+      "spatial": [
+        {
+          "op": "S_DWITHIN",
+          "targets": "$['provider']['locations'][*]['geo']",
+          "geometry": { "type": "Point", "coordinates": [<lng>, <lat>] },
+          "distanceMeters": 5000
+        }
+      ]
+    }
+  }
+}
+```
+
+With JSONPath filter:
+```json
+{
+  "context": { "...action: discover..." },
+  "message": {
+    "intent": {
+      "textSearch": "<query>",
+      "filters": {
+        "type": "jsonpath",
+        "expression": "$[?(@.resourceAttributes.food.classification == 'VEG')]"
+      }
+    }
+  }
+}
+```
+
+---
+
+## on_discover
+
+**Caller**: BPP/CDS → BAP  
+**Purpose**: Return matching catalogs with items and offers
+
+```json
+{
+  "context": {
+    "version": "2.0.0",
+    "action": "on_discover",
+    "bapId": "food-app.example.com",
+    "bapUri": "https://food-app.example.com/beckn",
+    "bppId": "tomato.com",
+    "bppUri": "https://tomato.com/beckn",
+    "networkId": "beckn:retail-network:in",
+    "ttl": "PT30S",
+    "messageId": "<uuid-new>",
+    "timestamp": "<ISO8601-UTC>",
+    "transactionId": "<same-as-discover>"
+  },
+  "message": {
+    "catalogs": [
+      {
+        "id": "<catalog-id>",
+        "bppId": "tomato.com",
+        "bppUri": "https://tomato.com/beckn",
+        "providerId": "<provider-id>",
+        "descriptor": {
+          "name": "<Provider Name>",
+          "shortDesc": "<brief description>",
+          "thumbnailImage": "<logo-url>"
+        },
+        "resources": [
+          {
+            "id": "<resource-id>",
+            "descriptor": {
+              "name": "<Item Name>",
+              "shortDesc": "<description>",
+              "thumbnailImage": "<image-url>"
+            },
+            "provider": {
+              "id": "<provider-id>",
+              "descriptor": { "name": "<Provider Name>" },
+              "locations": [
+                {
+                  "id": "<location-id>",
+                  "geo": { "type": "Point", "coordinates": [<lng>, <lat>] },
+                  "address": {
+                    "streetAddress": "<street>",
+                    "addressLocality": "<city>",
+                    "addressRegion": "<state>",
+                    "postalCode": "<pin>",
+                    "addressCountry": "IN"
+                  }
+                }
+              ]
+            },
+            "price": { "currency": "INR", "value": <base-price> },
+            "isActive": true,
+            "resourceAttributes": {
+              "@context": "https://schema.beckn.io/FnBItem/v2.1/context.jsonld",
+              "@type": "beckn:FnBItem",
+              "classification": "VEG",
+              "cuisine": "Italian",
+              "allergenInfo": { "contains": ["GLUTEN", "MILK"] },
+              "preparation": { "instructions": "<instructions>", "storage": "<storage>" }
+            }
+          }
+        ],
+        "offers": [
+          {
+            "id": "<offer-id>",
+            "resourceIds": ["<resource-id>"],
+            "price": { "currency": "INR", "value": <price> },
+            "offerAttributes": {
+              "@context": "https://schema.beckn.io/FnBOffer/v2.1/context.jsonld",
+              "@type": "beckn:FnBOffer",
+              "customization": {
+                "groups": [
+                  {
+                    "code": "SIZE",
+                    "name": "Choose Size",
+                    "selection": "SINGLE_REQUIRED",
+                    "options": [
+                      { "code": "REGULAR", "name": "Regular (7-inch)", "priceDelta": { "type": "FIXED", "value": 0 } },
+                      { "code": "MEDIUM",  "name": "Medium (10-inch)", "priceDelta": { "type": "FIXED", "value": 100 } },
+                      { "code": "LARGE",   "name": "Large (12-inch)",  "priceDelta": { "type": "FIXED", "value": 200 } }
+                    ]
+                  },
+                  {
+                    "code": "TOPPINGS",
+                    "name": "Add Toppings",
+                    "selection": "MULTIPLE_OPTIONAL",
+                    "minSelections": 0,
+                    "maxSelections": 3,
+                    "options": [
+                      { "code": "ONION",    "name": "Onion",    "priceDelta": { "type": "FIXED", "value": 30 } },
+                      { "code": "CAPSICUM", "name": "Capsicum", "priceDelta": { "type": "FIXED", "value": 30 } }
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+---
+
+## select
+
+**Caller**: BAP → BPP  
+**Purpose**: Choose item+offer, create DRAFT contract  
+**Note**: BAP sends minimal commitments — BPP echoes back full item/offer detail in on_select
+
+```json
+{
+  "context": {
+    "version": "2.0.0",
+    "action": "select",
+    "bapId": "food-app.example.com",
+    "bapUri": "https://food-app.example.com/beckn",
+    "bppId": "tomato.com",
+    "bppUri": "https://tomato.com/beckn",
+    "networkId": "beckn:retail-network:in",
+    "ttl": "PT30S",
+    "messageId": "<uuid-new>",
+    "timestamp": "<ISO8601-UTC>",
+    "transactionId": "<same-as-discover>"
+  },
+  "message": {
+    "contract": {
+      "@context": "https://schema.beckn.io/Contract/v2.0",
+      "@type": "beckn:Contract",
+      "participants": [
+        { "id": "<session-or-user-id>" },
+        { "id": "<store-id>", "displayName": "<Store Name>" }
+      ],
+      "commitments": [
+        {
+          "id": "<commitment-id>",
+          "status": { "descriptor": { "code": "DRAFT" } },
+          "resources": [{ "id": "<resource-id>", "quantity": { "unitCode": "EA", "unitQuantity": <qty> } }],
+          "offer": { "id": "<offer-id>", "resourceIds": ["<resource-id>"] },
+          "commitmentAttributes": {
+            "@context": "https://schema.beckn.io/FnBItem/v2.1/context.jsonld",
+            "@type": "beckn:FnBItem",
+            "lineId": "line-001",
+            "offerId": "<offer-id>",
+            "quantity": { "unitCode": "EA", "unitQuantity": <qty> },
+            "resourceId": "<resource-id>"
+          }
+        }
+      ]
+    }
+  }
+}
+```
+
+---
+
+## on_select
+
+**Caller**: BPP → BAP  
+**Purpose**: Return contract with prices, full resource/offer detail, performance placeholder
+
+```json
+{
+  "context": {
+    "version": "2.0.0",
+    "action": "on_select",
+    "bapId": "food-app.example.com",
+    "bapUri": "https://food-app.example.com/beckn",
+    "bppId": "tomato.com",
+    "bppUri": "https://tomato.com/beckn",
+    "networkId": "beckn:retail-network:in",
+    "ttl": "PT30S",
+    "messageId": "<same-as-select>",
+    "timestamp": "<ISO8601-UTC>",
+    "transactionId": "<same-as-discover>"
+  },
+  "message": {
+    "contract": {
+      "@context": "https://schema.beckn.io/Contract/v2.0",
+      "@type": "beckn:Contract",
+      "participants": [
+        { "id": "<session-or-user-id>" },
+        {
+          "id": "<store-id>",
+          "displayName": "<Store Name>",
+          "descriptor": { "name": "<Store Name>", "shortDesc": "<tagline>" },
+          "location": {
+            "id": "<store-id>",
+            "geo": { "type": "Point", "coordinates": [<lng>, <lat>] },
+            "address": { "streetAddress": "<addr>", "addressLocality": "<city>", "addressRegion": "<state>", "postalCode": "<pin>", "addressCountry": "IN" }
+          },
+          "rating": { "ratingValue": 4.3, "ratingCount": 2847 }
+        }
+      ],
+      "commitments": [
+        {
+          "id": "<commitment-id>",
+          "status": { "descriptor": { "code": "DRAFT" } },
+          "resources": [{ "id": "<resource-id>", "quantity": { "unitCode": "EA", "unitQuantity": <qty> } }],
+          "offer": { "id": "<offer-id>", "resourceIds": ["<resource-id>"] },
+          "commitmentAttributes": {
+            "@context": "https://schema.beckn.io/FnBItem/v2.1/context.jsonld",
+            "@type": "beckn:FnBItem",
+            "lineId": "line-001",
+            "offerId": "<offer-id>",
+            "quantity": { "unitCode": "EA", "unitQuantity": <qty> },
+            "price": {
+              "currency": "INR",
+              "value": <line-total>,
+              "components": [
+                { "type": "BASE_ITEM", "value": <unit-price>, "currency": "INR", "description": "<Item Name>" }
+              ]
+            },
+            "resourceId": "<resource-id>",
+            "classification": "VEG",
+            "cuisine": "Italian",
+            "allergenInfo": { "contains": ["GLUTEN", "MILK"] }
+          }
+        }
+      ],
+      "consideration": [
+        {
+          "id": "<consideration-id>",
+          "status": { "descriptor": { "code": "PENDING" } },
+          "considerationAttributes": {
+            "@context": "https://schema.beckn.io/FnBPriceSpecification/v2.1/context.jsonld",
+            "@type": "beckn:FnBPriceSpecification",
+            "currency": "INR",
+            "value": <total>,
+            "components": [
+              { "type": "BASE_ITEM",   "value": <items-total>,  "currency": "INR", "description": "<items>" },
+              { "type": "DELIVERY_FEE","value": <delivery-fee>, "currency": "INR", "description": "Delivery fee" }
+            ]
+          }
+        }
+      ],
+      "performance": [
+        {
+          "id": "<performance-id>",
+          "status": { "descriptor": { "code": "PENDING" } },
+          "performanceAttributes": {
+            "@context": "https://schema.beckn.io/HyperlocalDelivery/v2.0/context.jsonld",
+            "@type": "beckn:HyperlocalDelivery",
+            "pickupLocation": {
+              "id": "<store-id>",
+              "geo": { "type": "Point", "coordinates": [<lng>, <lat>] },
+              "address": { "streetAddress": "<store-address>", "addressLocality": "<city>", "addressRegion": "<state>", "postalCode": "<pin>", "addressCountry": "IN" }
+            },
+            "deliveryLocation": {
+              "geo": { "type": "Point", "coordinates": [<lng>, <lat>] }
+            },
+            "itemsShipped": [
+              { "resourceId": "<resource-id>", "offerId": "<offer-id>", "quantity": { "unitCode": "EA", "unitQuantity": <qty> }, "lineId": "line-001" }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}
+```
+
+---
+
+## init
+
+**Caller**: BAP → BPP  
+**Purpose**: Add full buyer details and complete delivery address
+
+Same contract as `on_select`, with:
+- Consumer participant gains `displayName`, `telephone`, `email`
+- `deliveryLocation` gets full address
+
+```json
+{
+  "context": { "...action: init, same transactionId..." },
+  "message": {
+    "contract": {
+      "@context": "https://schema.beckn.io/Contract/v2.0",
+      "@type": "beckn:Contract",
+      "participants": [
+        { "id": "<user@example.com>", "displayName": "<Buyer Name>", "telephone": "+91<phone>", "email": "<buyer@example.com>" },
+        { "...provider participant same as on_select..." }
+      ],
+      "commitments": ["<same as on_select>"],
+      "consideration": ["<same as on_select>"],
+      "performance": [
+        {
+          "id": "<performance-id>",
+          "status": { "descriptor": { "code": "PENDING" } },
+          "performanceAttributes": {
+            "@context": "https://schema.beckn.io/HyperlocalDelivery/v2.0/context.jsonld",
+            "@type": "beckn:HyperlocalDelivery",
+            "pickupLocation": { "...same store location..." },
+            "deliveryLocation": {
+              "geo": { "type": "Point", "coordinates": [<lng>, <lat>] },
+              "address": {
+                "streetAddress": "<Buyer Building, Street>",
+                "addressLocality": "<City>",
+                "addressRegion": "<State>",
+                "postalCode": "<PIN>",
+                "addressCountry": "IN"
+              }
+            },
+            "itemsShipped": ["<same as on_select>"]
+          }
+        }
+      ]
+    }
+  }
+}
+```
+
+---
+
+## on_init
+
+**Caller**: BPP → BAP  
+**Purpose**: Confirm payment terms, finalize SLA
+
+Same as `init` response body — BPP echoes back with confirmation. No contract `id` yet (assigned on on_confirm).
+
+```json
+{
+  "context": { "...action: on_init, same messageId as init..." },
+  "message": { "contract": { "<same as init, fully populated>" } }
+}
+```
+
+---
+
+## confirm
+
+**Caller**: BAP → BPP  
+**Purpose**: Finalise contract; include payment proof in entitlements
+
+```json
+{
+  "context": {
+    "version": "2.0.0",
+    "action": "confirm",
+    "bapId": "food-app.example.com",
+    "bapUri": "https://food-app.example.com/beckn",
+    "bppId": "tomato.com",
+    "bppUri": "https://tomato.com/beckn",
+    "networkId": "beckn:retail-network:in",
+    "ttl": "PT30S",
+    "messageId": "<uuid-new>",
+    "timestamp": "<ISO8601-UTC>",
+    "transactionId": "<same-as-discover>"
+  },
+  "message": {
+    "contract": {
+      "@context": "https://schema.beckn.io/Contract/v2.0",
+      "@type": "beckn:Contract",
+      "participants": ["<fully populated consumer + restaurant>"],
+      "commitments": ["<same as on_init>"],
+      "consideration": ["<same as on_init>"],
+      "performance": ["<same as init — includes full deliveryLocation>"],
+      "entitlements": [
+        {
+          "descriptor": {
+            "name": "Payment Reference",
+            "shortDesc": "Payment ref: <UTR-or-reference>"
+          },
+          "type": "PAYMENT_PROOF",
+          "id": "<UTR-or-payment-reference>"
+        }
+      ]
+    }
+  }
+}
+```
+
+---
+
+## on_confirm
+
+**Caller**: BPP → BAP  
+**Purpose**: Contract confirmed — status becomes ACTIVE, contract gets id + displayId
+
+```json
+{
+  "context": {
+    "version": "2.0.0",
+    "action": "on_confirm",
+    "bapId": "food-app.example.com",
+    "bapUri": "https://food-app.example.com/beckn",
+    "bppId": "tomato.com",
+    "bppUri": "https://tomato.com/beckn",
+    "networkId": "beckn:retail-network:in",
+    "ttl": "PT30S",
+    "messageId": "<same-as-confirm>",
+    "timestamp": "<ISO8601-UTC>",
+    "transactionId": "<same-as-discover>"
+  },
+  "message": {
+    "contract": {
+      "@context": "https://schema.beckn.io/Contract/v2.0",
+      "@type": "beckn:Contract",
+      "id": "<contract-uuid>",
+      "displayId": "<ORD-20260310-001>",
+      "status": { "descriptor": { "code": "ACTIVE" } },
+      "participants": ["<fully populated consumer + provider>"],
+      "commitments": ["<same as confirm>"],
+      "consideration": [
+        {
+          "id": "<consideration-id>",
+          "status": { "descriptor": { "code": "PENDING" } },
+          "considerationAttributes": {
+            "@context": "https://schema.beckn.io/FnBPriceSpecification/v2.1/context.jsonld",
+            "@type": "beckn:FnBPriceSpecification",
+            "currency": "INR",
+            "value": <total>,
+            "components": [
+              { "type": "BASE_ITEM",    "value": <items-total>,  "currency": "INR", "description": "<items>" },
+              { "type": "DELIVERY_FEE", "value": <delivery-fee>, "currency": "INR", "description": "Delivery fee" }
+            ]
+          }
+        }
+      ],
+      "performance": [
+        {
+          "id": "<performance-id>",
+          "status": { "descriptor": { "code": "ACTIVE", "name": "Order Received", "shortDesc": "Being prepared" } },
+          "performanceAttributes": {
+            "@context": "https://schema.beckn.io/HyperlocalDelivery/v2.0/context.jsonld",
+            "@type": "beckn:HyperlocalDelivery",
+            "pickupLocation": { "...store location..." },
+            "deliveryLocation": { "...buyer address..." },
+            "itemsShipped": ["<same as confirm>"]
+          }
+        }
+      ],
+      "entitlements": ["<same as confirm>"]
+    }
+  }
+}
+```
+
+---
+
+## status / on_status
+
+```json
+// status (BAP → BPP)
+{
+  "context": { "...action: status, same transactionId..." },
+  "message": { "contract": { "id": "<contract-uuid>" } }
+}
+
+// on_status (BPP → BAP)
+{
+  "context": { "...action: on_status, same transactionId..." },
+  "message": {
+    "contract": {
+      "@context": "https://schema.beckn.io/Contract/v2.0",
+      "@type": "beckn:Contract",
+      "id": "<contract-uuid>",
+      "status": { "descriptor": { "code": "ACTIVE" } },
+      "performance": [
+        {
+          "id": "<performance-id>",
+          "status": { "descriptor": { "code": "ACTIVE", "name": "Out for delivery", "shortDesc": "Your order is on the way" } },
+          "performanceAttributes": { "...updated delivery state..." }
+        }
+      ]
+    }
+  }
+}
+```
+
+---
+
+## cancel / on_cancel
+
+```json
+// cancel preview (try=true)
+{
+  "context": { "...action: cancel, try: true, same transactionId..." },
+  "message": { "contract": { "id": "<contract-uuid>" } }
+}
+
+// on_cancel preview — returns policy
+{
+  "context": { "...action: on_cancel, try: true..." },
+  "message": {
+    "contract": {
+      "@context": "https://schema.beckn.io/Contract/v2.0",
+      "@type": "beckn:Contract",
+      "id": "<contract-uuid>",
+      "status": { "descriptor": { "code": "ACTIVE" } }
+    }
+  }
+}
+
+// cancel commit
+{
+  "context": { "...action: cancel..." },
+  "message": { "contract": { "id": "<contract-uuid>" } }
+}
+
+// on_cancel commit
+{
+  "context": { "...action: on_cancel..." },
+  "message": {
+    "contract": {
+      "@context": "https://schema.beckn.io/Contract/v2.0",
+      "@type": "beckn:Contract",
+      "id": "<contract-uuid>",
+      "status": { "descriptor": { "code": "CANCELLED" } }
+    }
+  }
+}
+```
+
+---
+
+## track / on_track
+
+```json
+// track
+{
+  "context": { "...action: track, same transactionId..." },
+  "message": { "tracking": { "id": "<performance-id>" } }
+}
+
+// on_track
+{
+  "context": { "...action: on_track, same transactionId..." },
+  "message": {
+    "tracking": {
+      "id": "<performance-id>",
+      "url": "https://<bpp>/track/<contract-uuid>",
+      "websocketUrl": "wss://<bpp>/track/<contract-uuid>/live",
+      "status": { "descriptor": { "code": "ACTIVE" } }
+    }
+  }
+}
+```
+
+---
+
+## rate / on_rate
+
+```json
+// rate
+{
+  "context": { "...action: rate, same transactionId..." },
+  "message": {
+    "ratingInputs": [
+      {
+        "refId": "<contract-uuid>",
+        "refType": "CONTRACT",
+        "value": 4,
+        "maxValue": 5,
+        "feedback": "Great food, fast delivery!"
+      }
+    ]
+  }
+}
+
+// on_rate
+{
+  "context": { "...action: on_rate..." },
+  "message": {
+    "ratings": [
+      { "refId": "<contract-uuid>", "refType": "CONTRACT", "value": 4, "maxValue": 5 }
+    ]
+  }
+}
+```
+
+---
+
+## Payload completeness checklist
+
+Before outputting any payload set, verify:
+
+- [ ] `context.version: "2.0.0"` on every payload
+- [ ] All context fields camelCase (`bapId`, `messageId`, `transactionId`, `networkId`)
+- [ ] `bppId`/`bppUri` absent only from `discover`
+- [ ] `transactionId` same UUID across discover → on_confirm
+- [ ] `messageId` unique per request; on_* mirrors the request's messageId
+- [ ] `message.catalogs[].resources[]` (not `items[]`)
+- [ ] `resourceAttributes` on Resource (not `itemAttributes`)
+- [ ] `performance[]` in Contract (not `fulfillments[]`)
+- [ ] `performanceAttributes` on Performance (not `fulfillmentAttributes`)
+- [ ] Contract has `"@context": "https://schema.beckn.io/Contract/v2.0"` at top level
+- [ ] Contract `status.code: "ACTIVE"` on on_confirm (not "CONFIRMED")
+- [ ] Participants use array `@context`/`@type`, direct props (no `participantAttributes` wrapper)
+- [ ] `considerationAttributes` uses `components[]` (not `breakup[]`), has `value` (not `totalAmount`)
+- [ ] Every `*Attributes` block has `@context` and `@type`
+
+---
+<!-- inlined reference: transaction-flows.md -->
+
+# Beckn 2.0 Transaction Flows by Use Case Type
+
+---
+
+## Flow 1: Discovery only
+
+**Scenario signals**: "find me", "search for", "browse", "discover", "show me available"
+
+Steps: `discover` → `on_discover`
+
+- `discover`: BAP sends intent with textSearch and/or spatial filters
+- `on_discover`: BPP/CDS returns matching catalogs with resources and offers
+
+---
+
+## Flow 2: Simple order (retail, food)
+
+**Scenario signals**: full purchase journey — buyer finds item, places order, receives it
+
+Steps:
+1. `discover` — BAP broadcasts intent (textSearch, geo filter)
+2. `on_discover` — BPP returns catalog with resources + offers
+3. `select` — BAP creates DRAFT contract with chosen resource+offer and quantity
+4. `on_select` — BPP returns contract with priceSpecification calculated
+5. `init` — BAP adds buyer details (participant), delivery address (performance), payment method (consideration)
+6. `on_init` — BPP confirms payment terms and delivery window
+7. `confirm` — BAP finalises contract
+8. `on_confirm` — BPP returns CONFIRMED contract with contract ID
+
+---
+
+## Flow 3: Order with tracking
+
+Add after `on_confirm`:
+9. `status` — BAP polls current state
+10. `on_status` — BPP returns current contract status (ACTIVE, performance status)
+11. `track` — BAP requests real-time tracking handle
+12. `on_track` — BPP returns tracking URL or WebSocket endpoint
+
+---
+
+## Flow 4: Order with cancellation
+
+After `on_confirm`, buyer wants to cancel:
+- **Preview cancellation terms first** (recommended):
+  - `cancel` with `context.try: true` — BAP asks for policy
+  - `on_cancel` with `context.try: true` — BPP returns fees, refund timeline
+- **Commit cancellation**:
+  - `cancel` with `context.try: false` — BAP confirms
+  - `on_cancel` with `context.try: false` — BPP returns CANCELLED contract
+
+---
+
+## Flow 5: Order modification (update)
+
+Buyer wants to change item quantity, address, or timing:
+- **Preview updated terms**:
+  - `update` with `context.try: true`
+  - `on_update` returns revised quote (state NOT changed)
+- **Commit update**:
+  - `update` with `context.try: false`
+  - `on_update` returns updated contract
+
+---
+
+## Flow 6: Post-fulfillment
+
+After contract is COMPLETE:
+- `rate` — BAP submits rating for provider, item, delivery agent
+- `on_rate` — BPP acknowledges
+- `support` — BAP requests support channels or opens ticket
+- `on_support` — BPP returns support details
+
+---
+
+## Flow 7: Customized food/beverage order
+
+**Scenario signals**: pizza, restaurant, customizable meal, toppings, size selection
+
+Steps 1–8 (same as Flow 2) PLUS:
+
+- In `on_discover`: `offerAttributes` contains `customization.groups[]` (SIZE, TOPPINGS, SAUCE, etc.)
+- In `select`: `commitmentAttributes` includes selected customization options via `specialInstructions`
+- In `confirm`/`on_confirm`: full commitment details with quantity (EA), price delta captured
+
+---
+
+## Flow 8: Catalog publishing (BPP side)
+
+For BPPs publishing to a Catalog Discovery Service (CDS):
+
+1. `catalog/publish` — BPP pushes catalog(s) to CDS
+2. `catalog/on_publish` — CDS returns per-catalog processing results (ACCEPTED/REJECTED/PARTIAL)
+
+---
+
+## Flow 9: EV Charging (reservation + session)
+
+**Scenario signals**: EV charger, charging station, connector, kWh, session, EVSE
+
+Steps:
+1. `discover` — BAP broadcasts intent with geo filter near user's location
+2. `on_discover` — BPP returns catalog with `EvChargingService` items + `EvChargingOffer` offers
+3. `select` — BAP picks connector + tariff; creates DRAFT contract
+4. `on_select` — BPP returns contract with price estimate (kWh rate + idle fee)
+5. `init` — BAP adds EV driver details (EnergyCustomer participant), desired session window
+6. `on_init` — BPP confirms reservation slot and payment method
+7. `confirm` — BAP finalises contract; reservation ID issued
+8. `on_confirm` — BPP returns ACTIVE contract with `EvChargingSession` in performanceAttributes
+
+**During charging** (repeat as needed):
+9. `status` — BAP polls session state
+10. `on_status` — BPP returns updated `EvChargingSession` (meteredEnergyKwh, power, SoC)
+11. `update` (try=true) — BAP requests stop
+12. `on_update` — BPP returns final session summary
+13. `update` — BAP commits stop
+14. `on_update` — BPP finalises session with total cost
+
+**Schema map**:
+- `resourceAttributes`: EvChargingService
+- `offerAttributes`: EvChargingOffer
+- `performanceAttributes`: EvChargingSession
+- Participant types: EnergyCustomer (buyer), ChargingOperator (seller)
+
+---
+
+## Flow 10: P2P Day-Ahead Energy Trade
+
+**Scenario signals**: P2P energy, prosumer, peer trading, solar export, day-ahead market
+
+Steps:
+1. `discover` — BAP (buyer DISCOM / aggregator) searches for energy sellers
+2. `on_discover` — BPP (seller/prosumer) returns catalog with `EnergyResource` items + `EnergyTradeOffer` offers (BecknTimeSeries with 24 hourly slots)
+3. `select` — BAP picks offer slots and submits `bidTimeseries` (REQUESTED_QTY per slot)
+4. `on_select` — BPP returns matched contract with consideration (value = sum of selected slots × price)
+5. `init` — BAP adds EnergyCustomer participant (buyer's meterId), settlement preference
+6. `on_init` — BPP confirms matched energy schedule and total INR value
+7. `confirm` — BAP finalises; DEGContract (Rego policy) governs execution
+8. `on_confirm` — BPP returns ACTIVE contract with matched energy schedule
+
+**During delivery window** (repeat):
+9. `status` — BAP checks energy delivery state
+10. `on_status` — BPP returns telemetry (actual vs committed kWh per interval)
+
+**Schema map**:
+- `resourceAttributes`: EnergyResource (sourceType, meterId)
+- `offerAttributes`: EnergyTradeOffer (validityWindow, offerTimeseries + bidTimeseries)
+- Participant direct props: EnergyCustomer (meterId, utilityId, sanctionedLoad)
+- Contract level: DEGContract terms with Rego policyUrl
+
+---
+
+## Flow 11: Demand Flex Event
+
+**Scenario signals**: demand response, DR event, curtailment, load shifting, utility flex
+
+Steps:
+1. `discover` — Aggregator/BAP searches for demand flex opportunities from utilities
+2. `on_discover` — Utility/BPP returns catalog with `DemandFlexNeed` items (direction, eventWindow, maxCapacityKw)
+3. `select` — BAP commits capacity (commitmentAttributes with capacityKw, participatingDERs)
+4. `on_select` — BPP returns contract with incentive amount (incentivePerKwh × committed kWh)
+5. `init` — BAP adds aggregator participant, participating DER IDs
+6. `on_init` — BPP confirms event commitment and payment terms
+7. `confirm` — BAP finalises participation contract
+8. `on_confirm` — BPP returns ACTIVE contract for the flex event
+
+**During event**:
+9. `status` — BAP reports actual curtailment achieved
+10. `on_status` — BPP acknowledges and records compliance
+
+**Schema map**:
+- `resourceAttributes`: DemandFlexNeed (direction, eventWindow, maxCapacityKw, location)
+- `offerAttributes`: DemandFlexBuyOffer (incentivePerKwh, baselineMethodology, DEGContract)
+- `performanceAttributes`: custom DemandFlexPerformance (or use base Fulfillment with status)
+
+---
+
+## Flow 12: Data Exchange (DDM)
+
+**Scenario signals**: dataset, data purchase, API access, historical data, analytics data
+
+Steps:
+1. `discover` — BAP (data buyer) searches for datasets by keyword, topic, temporal coverage
+2. `on_discover` — BPP (data provider) returns catalog with `DatasetItem` items + pricing offers
+3. `select` — BAP picks dataset and license type; creates DRAFT contract
+4. `on_select` — BPP returns contract with price (flat, per-record, or subscription)
+5. `init` — BAP adds buyer details (organisation, billing, intended use)
+6. `on_init` — BPP confirms license terms, delivery format, access window
+7. `confirm` — BAP finalises; attaches payment proof in entitlements
+8. `on_confirm` — BPP returns ACTIVE contract with `DatasetFulfillment` (accessUrl, maxDownloads)
+
+**Post-delivery** (optional):
+9. `status` — BAP checks download availability or API quota
+10. `on_status` — BPP returns usage (downloadsUsed, remaining quota)
+11. `rate` — BAP rates dataset quality
+12. `on_rate` — BPP acknowledges rating
+
+**Schema map**:
+- `resourceAttributes`: DatasetItem (schema:identifier, temporalCoverage, variableMeasured, qualityFlags)
+- `offerAttributes`: RetailOffer or domain-specific pricing offer
+- `performanceAttributes`: DatasetFulfillment (accessMethod, accessUrl, format, fileSizeBytes)
+- Participant: data buyer org + data provider (direct props)
+
+---
+
+## State machine — Contract.status.descriptor.code
+
+```
+DRAFT → (select, on_select, init, on_init, confirm)
+       ↓
+ACTIVE → (on_confirm, status during fulfillment)
+       ↓
+COMPLETE → (after delivery/performance confirmed)
+       ↓ (or at any point)
+CANCELLED
+```
+
+## State machine — Commitment.status.descriptor.code
+
+```
+DRAFT → ACTIVE → CLOSED
+```
+
+## State machine — Performance.status.descriptor.code
+
+```
+PENDING → ACTIVE → COMPLETED | FAILED
+```
+
+---
+
+## Context rules by action
+
+| Action | bppId/bppUri required? | transactionId | messageId |
+|---|---|---|---|
+| `discover` | No (broadcast) | New UUID | New UUID |
+| `on_discover` | Yes | Same as discover | New UUID |
+| `select` | Yes (from on_discover) | Same | New UUID |
+| `on_select` | Yes | Same | Same as select (mirrors request) |
+| `init` | Yes | Same | New UUID |
+| `on_init` | Yes | Same | Same as init |
+| `confirm` | Yes | Same | New UUID |
+| `on_confirm` | Yes | Same | Same as confirm |
+| `status` | Yes | Same | New UUID |
+| `on_status` | Yes | Same | Same as status (or new if unsolicited) |
+
+---
+
+## Timing conventions
+
+- `ttl`: `"PT30S"` for synchronous ACK window; `"PT30M"` for long-running async
+- `timestamp`: ISO 8601 UTC with Z suffix
+- `transactionId`: established at discover, reused through confirm
+
+---
+
+## Domain → networkId conventions (examples)
+
+| Domain | networkId example |
+|---|---|
+| Food & Beverage | `beckn.network/food-and-beverage` |
+| Retail | `beckn.network/retail` |
+| Grocery | `beckn.network/grocery` |
+| Mobility | `beckn.network/mobility` |
+| Healthcare | `beckn.network/healthcare` |
+| Logistics | `beckn.network/logistics` |
+| Energy | `beckn.network/energy` |
+
+Always use the actual network's registered ID. These are illustrative examples.
+
+---
+<!-- inlined reference: usage-guide.md -->
+
+# How to use the Beckn Payload Builder skill
+
+---
+
+## Input format
+
+The skill accepts a **use case scenario** — a plain-English description of a value exchange.
+Write it like a user story:
+
+```
+"A retail buyer is looking for a Margherita pizza. They want to customise it 
+with a large size and extra cheese. The restaurant delivers within 45 minutes. 
+The buyer pays with UPI. They want to track their order."
+```
+
+You can also provide structured hints:
+
+```
+Domain: food-and-beverage
+Buyer: consumer app on ONDC network
+Seller: Sarpino's Pizzeria, Bandra, Mumbai
+Item: Margherita pizza (customisable)
+Fulfillment: home delivery
+Payment: UPI
+Lifecycle: full order + tracking
+```
+
+---
+
+## Output structure
+
+The skill always outputs:
+
+### 1. Beckn mapping summary (2–4 sentences)
+Maps the scenario to Beckn concepts: who is the BAP, who is the BPP, what is the Resource,
+what is the Offer, what is the Performance, what is the Consideration.
+
+### 2. Transaction flow
+A numbered list of API steps:
+```
+1. discover (BAP → CDS/BPP) — broadcast pizza search intent
+2. on_discover (BPP → BAP) — return Sarpino's catalog with pizza resources + offers
+3. select (BAP → BPP) — choose Margherita + SIZE=LARGE + EXTRA_CHEESE
+4. on_select (BPP → BAP) — return contract with INR 450 + INR 50 delivery
+5. init (BAP → BPP) — add buyer address + UPI payment preference
+6. on_init (BPP → BAP) — confirm payment terms + 45-min SLA
+7. confirm (BAP → BPP) — finalise order
+8. on_confirm (BPP → BAP) — return CONFIRMED contract with contract ID
+9. track (BAP → BPP) — request live tracking
+10. on_track (BPP → BAP) — return WebSocket tracking URL
+```
+
+### 3. Custom schema table
+| Schema | Attached to | Why |
+|---|---|---|
+| FoodAndBeverageResource | Resource.resourceAttributes | Captures VEG classification, allergens, cuisine |
+| FoodAndBeverageOffer | Offer.offerAttributes | Captures SIZE + TOPPINGS customization groups |
+| RetailCommitment | Commitment.commitmentAttributes | Captures selected size (LARGE) + special instructions |
+| RetailPerformance | Performance.performanceAttributes | Captures DELIVERY mode, address, 45-min SLA |
+| RetailContract | Contract.contractAttributes | Captures contactless delivery preference |
+| RetailConsideration | Consideration.considerationAttributes | Captures UPI + price breakup (pizza + delivery + GST) |
+
+### 4. Full payloads
+One labelled JSON block per API action.
+
+### 5. Schema gap analysis
+If the scenario contains domain data not capturable by existing schemas:
+- Description of the gap (e.g. "the scenario mentions a 'chef recommendation' flag not in FoodAndBeverageResource")
+- Proposed new schema with key fields
+- Which `*Attributes` container it would attach to
+
+---
+
+## Example use case: Pizza order (full flow)
+
+**Input**:
+> A retail buyer is looking for pizza. They find a Margherita pizza at Sarpino's Pizzeria.
+> They want a large size with extra cheese and no onions. The restaurant delivers to their
+> Mumbai address within 45 minutes for INR 449 + INR 49 delivery. The buyer pays via UPI.
+> After placing the order, they want to track the delivery in real time.
+
+**Beckn mapping**:
+- BAP: consumer app (e.g. buyer.ondc.org)
+- BPP: Sarpino's restaurant system (restaurant.sarpinos.ondc.org)
+- Domain: food-and-beverage
+- Resource: Margherita Pizza (FoodAndBeverageResource)
+- Offer: customisable with SIZE + TOPPINGS groups (FoodAndBeverageOffer)
+- Performance: DELIVERY mode, 45-min SLA (RetailPerformance)
+- Consideration: UPI, INR 498 total (RetailConsideration)
+- Flow: discover → on_discover → select → on_select → init → on_init → confirm → on_confirm → track → on_track
+
+**Custom schemas needed**:
+All captured by existing retail schemas. No new schema required.
+
+---
+
+## Example use case: Domain requiring a new schema
+
+**Input**:
+> A patient searches for a dental clinic near them. They want to book a teeth-cleaning
+> appointment for next Tuesday at 10am. The appointment takes 45 minutes. They pay INR 800
+> in advance via credit card. After the appointment, they want to rate the dentist.
+
+**Beckn mapping**:
+- Domain: healthcare (dental)
+- Resource: "Teeth Cleaning" service (needs HealthcareResource schema — NOT in existing catalogue)
+- Offer: appointment slot (needs HealthcareOffer with time-slot groups — NOT in existing catalogue)
+- Performance: SERVICE mode (RetailPerformance covers this)
+- Consideration: CREDIT payment (RetailConsideration covers this)
+
+**Schema gap**:
+- `HealthcareResource` needed: serviceType (DENTAL_CLEANING, CONSULTATION, ...), duration, providerId, licenseNumber, specialization
+- `HealthcareOffer` needed: slot-based availability (date, startTime, endTime, capacity, bufferTime)
+
+Proposed new schema `HealthcareResource`:
+```yaml
+HealthcareResourceAttributes:
+  x-beckn-container: resourceAttributes
+  x-jsonld:
+    "@context": "https://schema.beckn.io/HealthcareResource/v1.0/context.jsonld"
+    "@type": "hcr:HealthcareResourceAttributes"
+  properties:
+    serviceType: string            # DENTAL_CLEANING, GP_CONSULTATION, PHYSIOTHERAPY …
+    serviceDurationMinutes: integer
+    specialization: string
+    licenseNumber: string
+    licenseAuthority: string
+    patientPreparation: string     # "No food 2 hours before" etc.
+```
+
+---
+
+## Tips for writing a good use case input
+
+| Include | Why |
+|---|---|
+| What the buyer is looking for | Drives discover intent + textSearch |
+| Any customisation options | Drives FoodAndBeverageOffer/customization groups |
+| How it will be delivered | Drives Performance schema (DELIVERY vs PICKUP vs SERVICE) |
+| Payment method | Drives Consideration schema paymentMethods |
+| Any special buyer instructions | Drives RetailContract.buyerInstructions |
+| Post-order steps needed | Drives whether to generate tracking/cancel/rate payloads |
+| Domain/industry | Critical for picking the right resource/offer schemas |
+
+| Optional but useful | Why |
+|---|---|
+| Provider name + location | Makes payloads more realistic |
+| Approximate price | Makes price breakup realistic |
+| City/geo location | Enables spatial filter in discover |
+| Buyer name + address | Populates init/on_init participant and delivery details |
+
+---
+
+## Variations
+
+**"Just show me the discovery payloads"** → Only generate `discover` + `on_discover`
+
+**"I only need the order placement flow"** → Generate `select` through `on_confirm` only
+
+**"Show me what happens when the buyer cancels"** → Add `cancel (try=true)` → `on_cancel (try=true)` → `cancel (try=false)` → `on_cancel (try=false)`
+
+**"The restaurant also offers dine-in"** → Add `DINE_IN` mapped to `SERVICE` in `supportedPerformanceModes`
+
+**"Multi-item order"** → Add multiple commitments in `commitments[]`, each with its own `commitmentAttributes`
