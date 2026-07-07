@@ -8,8 +8,8 @@ metadata:
 
 ## Authoritative spec source
 
-The **canonical schema** is the `draft` branch of `protocol-specifications-v2`:
-https://github.com/beckn/protocol-specifications-v2/tree/draft — file `api/v2.0.0/beckn.yaml`
+The **canonical schema** is the `core-v2.0.0-lts` release tag of `protocol-specifications-v2`:
+https://github.com/beckn/protocol-specifications-v2/tree/core-v2.0.0-lts — file `api/v2.0.0/beckn.yaml`
 
 Reference examples:
 - `examples/retail/food-and-beverages/IN/pizza-delivery-2.0/`
@@ -17,7 +17,7 @@ Reference examples:
 
 > **CRITICAL**: DEG repo examples use an older EOS schema format with snake_case context fields
 > (`bap_id`, `transaction_id`) and `message.order`. Those formats are INVALID in v2.0.0 LTS.
-> Always use the draft spec structure with camelCase context fields.
+> Always use the v2.0.0 LTS spec structure with camelCase context fields.
 
 ## Step 1 — Parse the use case
 
@@ -190,7 +190,7 @@ Ask yourself:
 
 ## Reference files
 
-- [references/core-schema.md](references/core-schema.md) — Full v2.0.0 draft data model
+- [references/core-schema.md](references/core-schema.md) — Full v2.0.0 LTS data model
 - [references/transaction-flows.md](references/transaction-flows.md) — Lifecycle by domain type
 - [references/custom-schemas.md](references/custom-schemas.md) — Retail + F&B schema catalogue
 - [references/domain-schemas-energy-data.md](references/domain-schemas-energy-data.md) — DEG (EV, P2P, flex) + DDM schemas

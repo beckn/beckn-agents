@@ -3,9 +3,9 @@
 Schemas for the Digital Energy Grid (DEG) sub-domains and the Decentralized Data Marketplace (DDM).
 
 > **CRITICAL**: DEG `examples/ev-charging/v2/` uses an older EOS format (`bap_id`, `message.order`, `beckn:Order`).
-> Those example payloads are INVALID for v2.0.0 LTS draft.
+> Those example payloads are INVALID for v2.0.0 LTS.
 > Only use the DEG/DDM **specification/schema/** YAML files for domain field definitions.
-> Always embed domain attributes inside the v2.0.0 draft core structure.
+> Always embed domain attributes inside the v2.0.0 LTS core structure.
 
 ---
 

@@ -1,6 +1,6 @@
 # Canonical Payload Templates
 
-Based on: `protocol-specifications-v2` draft branch canonical pizza-delivery-2.0 examples.
+Based on: `protocol-specifications-v2` `core-v2.0.0-lts` release tag canonical pizza-delivery-2.0 examples.
 Placeholders use `<angle-bracket>` notation. Replace with scenario-specific values.
 
 ---

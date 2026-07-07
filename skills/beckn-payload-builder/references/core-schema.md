@@ -1,9 +1,9 @@
 # Beckn 2.0.0 LTS Core Schema Reference
 
-**Source**: `protocol-specifications-v2` — **draft branch** — `api/v2.0.0/beckn.yaml`
+**Source**: `protocol-specifications-v2` — **`core-v2.0.0-lts` release tag** — `api/v2.0.0/beckn.yaml`
 **Canonical examples**: `examples/retail/food-and-beverages/IN/pizza-delivery-2.0/`
 
-> Never use the main branch or older EOS-format examples. The draft branch is authoritative.
+> Never use older EOS-format examples. The `core-v2.0.0-lts` release tag is authoritative.
 
 ---
 

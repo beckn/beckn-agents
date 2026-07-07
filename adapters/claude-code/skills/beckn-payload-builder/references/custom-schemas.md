@@ -3,7 +3,7 @@
 Custom schemas extend core Beckn entities via `*Attributes` extension fields.
 Each uses JSON-LD (`@context` + `@type`) for semantic interoperability.
 
-**Container field names** (v2.0.0 LTS draft):
+**Container field names** (v2.0.0 LTS):
 - `resourceAttributes` on `Resource` in catalog
 - `offerAttributes` on `Offer`
 - `commitmentAttributes` on `Commitment`

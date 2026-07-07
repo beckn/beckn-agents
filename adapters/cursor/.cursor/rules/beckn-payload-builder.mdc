@@ -6,8 +6,8 @@ alwaysApply: false
 
 ## Authoritative spec source
 
-The **canonical schema** is the `draft` branch of `protocol-specifications-v2`:
-https://github.com/beckn/protocol-specifications-v2/tree/draft — file `api/v2.0.0/beckn.yaml`
+The **canonical schema** is the `core-v2.0.0-lts` release tag of `protocol-specifications-v2`:
+https://github.com/beckn/protocol-specifications-v2/tree/core-v2.0.0-lts — file `api/v2.0.0/beckn.yaml`
 
 Reference examples:
 - `examples/retail/food-and-beverages/IN/pizza-delivery-2.0/`
@@ -15,7 +15,7 @@ Reference examples:
 
 > **CRITICAL**: DEG repo examples use an older EOS schema format with snake_case context fields
 > (`bap_id`, `transaction_id`) and `message.order`. Those formats are INVALID in v2.0.0 LTS.
-> Always use the draft spec structure with camelCase context fields.
+> Always use the v2.0.0 LTS spec structure with camelCase context fields.
 
 ## Step 1 — Parse the use case
 
@@ -188,7 +188,7 @@ Ask yourself:
 
 ## Reference files
 
-- [references/core-schema.md](references/core-schema.md) — Full v2.0.0 draft data model
+- [references/core-schema.md](references/core-schema.md) — Full v2.0.0 LTS data model
 - [references/transaction-flows.md](references/transaction-flows.md) — Lifecycle by domain type
 - [references/custom-schemas.md](references/custom-schemas.md) — Retail + F&B schema catalogue
 - [references/domain-schemas-energy-data.md](references/domain-schemas-energy-data.md) — DEG (EV, P2P, flex) + DDM schemas
@@ -200,10 +200,10 @@ Ask yourself:
 
 # Beckn 2.0.0 LTS Core Schema Reference
 
-**Source**: `protocol-specifications-v2` — **draft branch** — `api/v2.0.0/beckn.yaml`
+**Source**: `protocol-specifications-v2` — **`core-v2.0.0-lts` release tag** — `api/v2.0.0/beckn.yaml`
 **Canonical examples**: `examples/retail/food-and-beverages/IN/pizza-delivery-2.0/`
 
-> Never use the main branch or older EOS-format examples. The draft branch is authoritative.
+> Never use older EOS-format examples. The `core-v2.0.0-lts` release tag is authoritative.
 
 ---
 
@@ -622,7 +622,7 @@ Error NACK:
 Custom schemas extend core Beckn entities via `*Attributes` extension fields.
 Each uses JSON-LD (`@context` + `@type`) for semantic interoperability.
 
-**Container field names** (v2.0.0 LTS draft):
+**Container field names** (v2.0.0 LTS):
 - `resourceAttributes` on `Resource` in catalog
 - `offerAttributes` on `Offer`
 - `commitmentAttributes` on `Commitment`
@@ -1003,9 +1003,9 @@ components:
 Schemas for the Digital Energy Grid (DEG) sub-domains and the Decentralized Data Marketplace (DDM).
 
 > **CRITICAL**: DEG `examples/ev-charging/v2/` uses an older EOS format (`bap_id`, `message.order`, `beckn:Order`).
-> Those example payloads are INVALID for v2.0.0 LTS draft.
+> Those example payloads are INVALID for v2.0.0 LTS.
 > Only use the DEG/DDM **specification/schema/** YAML files for domain field definitions.
-> Always embed domain attributes inside the v2.0.0 draft core structure.
+> Always embed domain attributes inside the v2.0.0 LTS core structure.
 
 ---
 
@@ -1496,7 +1496,7 @@ fulfillment:supportEmail: email
 
 # Canonical Payload Templates
 
-Based on: `protocol-specifications-v2` draft branch canonical pizza-delivery-2.0 examples.
+Based on: `protocol-specifications-v2` `core-v2.0.0-lts` release tag canonical pizza-delivery-2.0 examples.
 Placeholders use `<angle-bracket>` notation. Replace with scenario-specific values.
 
 ---

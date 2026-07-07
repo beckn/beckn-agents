@@ -9,12 +9,12 @@ license: MIT
 ## Authoritative reference
 
 The full schema design guide lives in the protocol-specifications-v2 repo:
-→ GitHub: https://github.com/beckn/protocol-specifications-v2/blob/draft/docs/Schema_Design_Guide.md
+→ GitHub: https://github.com/beckn/protocol-specifications-v2/blob/core-v2.0.0-lts/docs/Schema_Design_Guide.md
 
 **Always read that document first.** This skill captures the mental models and decision framework on top of it — not a replacement.
 
 Related specs:
-- Core schema: `api/v2.0.0/beckn.yaml` in https://github.com/beckn/protocol-specifications-v2
+- Core schema: `api/v2.0.0/beckn.yaml` in https://github.com/beckn/protocol-specifications-v2 at the `core-v2.0.0-lts` release tag
 - Beckn Schema Registry: https://schema.beckn.io
 - Community schemas: https://github.com/beckn/schemas
 - Energy/DEG schemas: https://github.com/beckn/DEG
