@@ -15,7 +15,7 @@ The full schema design guide lives in the protocol-specifications-v2 repo:
 
 Related specs:
 - Core schema: `api/v2.0.0/beckn.yaml` in https://github.com/beckn/protocol-specifications-v2 at the `core-v2.0.0-lts` release tag
-- Beckn Schema Registry: https://schema.beckn.io
+- Beckn Schema Registry: https://schema.nfh.global
 - Community schemas: https://github.com/beckn/schemas
 - Energy/DEG schemas: https://github.com/beckn/DEG
 
@@ -25,7 +25,7 @@ Related specs:
 
 **Before authoring anything**, search the Beckn Schema Registry.
 
-> Go to https://schema.beckn.io and search for terms related to your use case.
+> Go to https://schema.nfh.global and search for terms related to your use case.
 
 Ask yourself:
 - Does an existing schema cover this domain? Can I reuse it with minor extension?
@@ -132,7 +132,7 @@ If you do author a relationship schema, it MUST describe only the relationship �
 
 From the Schema Design Guide:
 
-- [ ] **Search first** — `schema.beckn.io` checked before authoring
+- [ ] **Search first** — `schema.nfh.global` checked before authoring
 - [ ] **No conjoined names** — no `With`, `And`, `Plus` in schema names
 - [ ] **No mandatory fields** — all fields optional by default; mandatoriness via network policy
 - [ ] **Descriptor-first** — if semantics fit in `Descriptor.name/shortDesc/longDesc`, no schema needed
@@ -178,7 +178,7 @@ PRs MUST NOT be raised directly to `main`. NFO collaborators with write access M
 
 ## Step 7 — Output format when helping a developer
 
-1. **Registry check** — confirm search result from `schema.beckn.io`; name any close matches
+1. **Registry check** — confirm search result from `schema.nfh.global`; name any close matches
 2. **Abstraction decision** — one paragraph: what level of generality, why, and what gets pushed to vocab/policy
 3. **Inheritance vs composition ruling** — which `*Attributes` extension point(s) to use, or which primitives to compose
 4. **Draft `attributes.yaml`** — minimal, no mandatory fields, AI-readable descriptions
