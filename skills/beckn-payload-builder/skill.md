@@ -1,8 +1,8 @@
 ---
 name: beckn-payload-builder
 version: 1.0.0
-description: Understands Beckn 2.0.0 LTS core schema and generates complete, valid sample payloads for all API actions given a use case description. Detects when domain-specific custom schemas are needed and maps them correctly. Covers retail, food & beverage, grocery, EV charging, energy (P2P trading, demand flex), and data marketplace (DDM) domains.
-tags: [beckn, protocol, payload, api, schema, retail, food, energy, ev-charging, p2p-trading, demand-flex, data-marketplace, ddm, deg]
+description: Understands Beckn 2.0.0 LTS core schema and generates complete, valid sample payloads for all API actions given a use case description. Detects when domain-specific custom schemas are needed and maps them correctly. Covers retail, food & beverage, grocery, EV charging, energy (P2P trading, demand flex), data marketplace (DDM), and mobility (ride-hailing, transit, rental) domains.
+tags: [beckn, protocol, payload, api, schema, retail, food, energy, ev-charging, p2p-trading, demand-flex, data-marketplace, ddm, deg, mobility, ride-hailing, transit]
 license: MIT
 ---
 
@@ -23,7 +23,7 @@ Reference examples:
 
 Read the user's scenario and extract:
 
-1. **Domain** — What vertical? (`food-and-beverage`, `retail`, `energy/ev-charging`, `energy/p2p-trading`, `energy/demand-flex`, `data/ddm`, etc.)
+1. **Domain** — What vertical? (`food-and-beverage`, `retail`, `energy/ev-charging`, `energy/p2p-trading`, `energy/demand-flex`, `data/ddm`, `mobility/ride-hailing`, `mobility/transit`, `mobility/rental`, etc.)
 2. **Actors** — Who is the buyer (BAP side) and seller/provider (BPP side)?
 3. **Resource** — What good, service, or data is being exchanged?
 4. **Fulfillment type** — Physical delivery? Service? Energy transfer? Data download? API access?
@@ -74,6 +74,8 @@ Custom schemas attach to core entities via `*Attributes` extension fields:
 | Participant direct props | `Contract.participants[]` | role-specific identity — no `participantAttributes` wrapper |
 
 For energy and data domains, see [./references/domain-schemas-energy-data.md](./references/domain-schemas-energy-data.md).
+
+For mobility, see [./references/domain-schemas-mobility.md](./references/domain-schemas-mobility.md) — that file points at the `beckn/mobility` repo for live concept/field lookup rather than embedding a fixed schema list, since mobility vocabulary is still evolving there.
 
 ## Step 4 — Generate payloads
 
@@ -178,6 +180,7 @@ Ask yourself:
 - **P2P energy trade?** → `EnergyResource` in `resourceAttributes`; `EnergyTradeOffer` (with BecknTimeSeries) in `offerAttributes`; `EnergyCustomer` direct props on Participant
 - **Demand flex event?** → `DemandFlexNeed` in `resourceAttributes`; `DemandFlexBuyOffer` in `offerAttributes`
 - **Dataset/data exchange?** → `DatasetItem` in `resourceAttributes`; `DatasetFulfillment` in `performanceAttributes`
+- **Mobility (ride-hailing, transit, rental)?** → see [./references/domain-schemas-mobility.md](./references/domain-schemas-mobility.md); fetch concept/field names live from the `beckn/mobility` repo rather than assuming a fixed schema, then map by category onto `resourceAttributes`/`offerAttributes`/`commitmentAttributes`/`performanceAttributes`/`considerationAttributes`/Participant
 - **New domain?** → First check `https://schema.beckn.io` for existing schemas. Ask the user which domain/schema set to search. Only propose a new schema after confirming no existing one fits.
 
 ## Step 7 — Output format
@@ -194,5 +197,6 @@ Ask yourself:
 - [references/transaction-flows.md](references/transaction-flows.md) — Lifecycle by domain type
 - [references/custom-schemas.md](references/custom-schemas.md) — Retail + F&B schema catalogue
 - [references/domain-schemas-energy-data.md](references/domain-schemas-energy-data.md) — DEG (EV, P2P, flex) + DDM schemas
+- [references/domain-schemas-mobility.md](references/domain-schemas-mobility.md) — Mobility concept-to-core mapping pattern + pointers into the `beckn/mobility` repo
 - [references/payload-templates.md](references/payload-templates.md) — Canonical JSON shapes
 - [references/usage-guide.md](references/usage-guide.md) — Input format and examples

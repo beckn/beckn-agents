@@ -1,5 +1,5 @@
 ---
-description: 'Understands Beckn 2.0.0 LTS core schema and generates complete, valid sample payloads for all API actions given a use case description. Detects when domain-specific custom schemas are needed and maps them correctly. Covers retail, food & beverage, grocery, EV charging, energy (P2P trading, demand flex), and data marketplace (DDM) domains.'
+description: 'Understands Beckn 2.0.0 LTS core schema and generates complete, valid sample payloads for all API actions given a use case description. Detects when domain-specific custom schemas are needed and maps them correctly. Covers retail, food & beverage, grocery, EV charging, energy (P2P trading, demand flex), data marketplace (DDM), and mobility (ride-hailing, transit, rental) domains.'
 alwaysApply: false
 ---
 
@@ -21,7 +21,7 @@ Reference examples:
 
 Read the user's scenario and extract:
 
-1. **Domain** — What vertical? (`food-and-beverage`, `retail`, `energy/ev-charging`, `energy/p2p-trading`, `energy/demand-flex`, `data/ddm`, etc.)
+1. **Domain** — What vertical? (`food-and-beverage`, `retail`, `energy/ev-charging`, `energy/p2p-trading`, `energy/demand-flex`, `data/ddm`, `mobility/ride-hailing`, `mobility/transit`, `mobility/rental`, etc.)
 2. **Actors** — Who is the buyer (BAP side) and seller/provider (BPP side)?
 3. **Resource** — What good, service, or data is being exchanged?
 4. **Fulfillment type** — Physical delivery? Service? Energy transfer? Data download? API access?
@@ -72,6 +72,8 @@ Custom schemas attach to core entities via `*Attributes` extension fields:
 | Participant direct props | `Contract.participants[]` | role-specific identity — no `participantAttributes` wrapper |
 
 For energy and data domains, see [./references/domain-schemas-energy-data.md](./references/domain-schemas-energy-data.md).
+
+For mobility, see [./references/domain-schemas-mobility.md](./references/domain-schemas-mobility.md) — that file points at the `beckn/mobility` repo for live concept/field lookup rather than embedding a fixed schema list, since mobility vocabulary is still evolving there.
 
 ## Step 4 — Generate payloads
 
@@ -176,6 +178,7 @@ Ask yourself:
 - **P2P energy trade?** → `EnergyResource` in `resourceAttributes`; `EnergyTradeOffer` (with BecknTimeSeries) in `offerAttributes`; `EnergyCustomer` direct props on Participant
 - **Demand flex event?** → `DemandFlexNeed` in `resourceAttributes`; `DemandFlexBuyOffer` in `offerAttributes`
 - **Dataset/data exchange?** → `DatasetItem` in `resourceAttributes`; `DatasetFulfillment` in `performanceAttributes`
+- **Mobility (ride-hailing, transit, rental)?** → see [./references/domain-schemas-mobility.md](./references/domain-schemas-mobility.md); fetch concept/field names live from the `beckn/mobility` repo rather than assuming a fixed schema, then map by category onto `resourceAttributes`/`offerAttributes`/`commitmentAttributes`/`performanceAttributes`/`considerationAttributes`/Participant
 - **New domain?** → First check `https://schema.beckn.io` for existing schemas. Ask the user which domain/schema set to search. Only propose a new schema after confirming no existing one fits.
 
 ## Step 7 — Output format
@@ -192,6 +195,7 @@ Ask yourself:
 - [references/transaction-flows.md](references/transaction-flows.md) — Lifecycle by domain type
 - [references/custom-schemas.md](references/custom-schemas.md) — Retail + F&B schema catalogue
 - [references/domain-schemas-energy-data.md](references/domain-schemas-energy-data.md) — DEG (EV, P2P, flex) + DDM schemas
+- [references/domain-schemas-mobility.md](references/domain-schemas-mobility.md) — Mobility concept-to-core mapping pattern + pointers into the `beckn/mobility` repo
 - [references/payload-templates.md](references/payload-templates.md) — Canonical JSON shapes
 - [references/usage-guide.md](references/usage-guide.md) — Input format and examples
 
@@ -1492,6 +1496,62 @@ fulfillment:supportEmail: email
 | Dataset access | DatasetFulfillment | Fulfillment.performanceAttributes |
 
 ---
+<!-- inlined reference: domain-schemas-mobility.md -->
+
+# Mobility Domain Reference
+
+Unlike the retail/F&B and DEG/DDM domains, this file does **not** embed mobility schema
+fields or example payloads. The mobility domain vocabulary is large, actively evolving,
+and owned by a separate repo — copying field names here would go stale. Instead, this
+file tells you **where to look** and **how to map** whatever you find onto the v2.0.0
+LTS core structure.
+
+## Authoritative source — fetch live, don't rely on a cached copy
+
+**Repo**: https://github.com/beckn/mobility
+
+| What you need | Where |
+|---|---|
+| Concept vocabulary / ontology (Vehicle, Fare, Booking, Stop, Route, Leg, Journey, Operator, Passenger, etc.) | `docs/4_Beckn_Mobility_Concepts.md`, `docs/Mobility_Ontology.md` |
+| Domain background & scope | `docs/1_Overview.md`, `docs/2_Mobility_Concepts.md`, `docs/3_Mobility_Standards.md`, `docs/4_Beckn_Mobility_Concepts.md` |
+| Action-by-action flow narratives | `docs/API-Flows.md` |
+| Worked use cases with example request/response JSON | `docs/example_implementations/<use-case>/README.md` and `.../example-jsons/` |
+
+Known use-case folders under `docs/example_implementations/` (check the repo for the current list — this list itself can grow):
+`ride_hailing`, `cab_rental`, `advance_cab_reservation`, `intercity_bus`, `metro_ticket_booking`, `public_transit_bus`.
+The `ride_hailing` example further breaks out by mode: `bike_rental`, `cab_hailing`, `car_rental`, `driver_rental`, `metro_fare`, `multimodal_itinerary`.
+
+Fetch the relevant doc or example (`gh api repos/beckn/mobility/contents/<path>` or WebFetch on the raw file) at the time you need it, rather than assuming a schema name or field list from memory.
+
+> **CRITICAL**: The example JSONs in that repo are pre-v2.0.0 style (`bap_id`, Ack/Nack response
+> envelopes, `message.order`). They are useful **only** to learn what concepts/fields a mobility
+> flow needs (fare breakup, vehicle info, stops, driver details, cancellation reasons, etc.) — never
+> copy their structure verbatim. Always re-express the concept inside the v2.0.0 LTS core shape
+> (camelCase context, `resourceAttributes`/`offerAttributes`/`commitmentAttributes`/
+> `performanceAttributes`/`considerationAttributes`, `Contract.participants[]` direct props).
+
+## How to map a mobility concept onto the v2.0.0 LTS core
+
+Same `*Attributes` extension pattern used everywhere else in this skill — the mapping below is by
+concept **category**, so it stays valid even as the mobility repo's specific concept list evolves:
+
+| Concept category (examples from the ontology) | Attaches to |
+|---|---|
+| The thing being offered — Vehicle, VehicleType, Route, Line, Stop, Trip Specification, Fare Product | `Item.resourceAttributes` |
+| Pricing/availability of that thing — Fare, Tariff, System Pricing Plan, Sales Offer Package | `Offer.offerAttributes` |
+| What the buyer actually selected/booked — Booking line details, seat/place request, selected leg(s) | `Commitment.commitmentAttributes` |
+| Execution/tracking of the trip — Vehicle Position, Trip Update, ETA, driver+vehicle assignment, occupancy | `Fulfillment.performanceAttributes` |
+| Fare breakdown, payment, refund/cancellation charges | `Consideration.considerationAttributes` |
+| People/orgs involved — Passenger, Operator, Carrier, Driver, Authority | `Contract.participants[]` (direct props, no wrapper) |
+
+## Before authoring a new mobility schema
+
+Follow the same check-before-create rule as every other domain in this skill:
+1. Search `https://schema.nfh.global` for an existing mobility schema first.
+2. If nothing fits, read the relevant concept definition live from `docs/4_Beckn_Mobility_Concepts.md` / `docs/Mobility_Ontology.md` in the mobility repo to get the correct name and semantics before proposing a new `*Attributes` schema.
+3. See the `beckn-schema-builder` skill for the full schema design/authoring process.
+
+---
 <!-- inlined reference: payload-templates.md -->
 
 # Canonical Payload Templates
@@ -2374,6 +2434,31 @@ Steps:
 - `offerAttributes`: RetailOffer or domain-specific pricing offer
 - `performanceAttributes`: DatasetFulfillment (accessMethod, accessUrl, format, fileSizeBytes)
 - Participant: data buyer org + data provider (direct props)
+
+---
+
+## Flow 13: Mobility (ride-hailing / transit / rental)
+
+**Scenario signals**: cab, ride, taxi, bike/car rental, bus, metro, transit ticket, multimodal trip
+
+Same lifecycle shape as Flow 2/3, no mobility-specific step sequence:
+
+1. `discover` — BAP broadcasts intent (origin/destination geo, mode, time window)
+2. `on_discover` — BPP returns catalog of vehicle/route/fare options
+3. `select` — BAP picks an option; creates DRAFT contract
+4. `on_select` — BPP returns contract with fare estimate
+5. `init` — BAP adds passenger details, pickup/drop specifics, payment method
+6. `on_init` — BPP confirms fare and any reservation terms
+7. `confirm` — BAP finalises contract
+8. `on_confirm` — BPP returns ACTIVE contract (driver/vehicle assignment where applicable)
+9. `track` / `on_track` — live trip position during the ride
+10. `status` / `on_status` — trip state polling
+11. `cancel` / `on_cancel` — per Flow 4
+12. `rate` / `on_rate` — post-trip rating
+
+**Schema map**: not fixed here — see [domain-schemas-mobility.md](./domain-schemas-mobility.md) for the
+concept-category → `*Attributes` mapping, and fetch the actual concept/field names live from the
+`beckn/mobility` repo since that vocabulary evolves independently of this skill.
 
 ---
 

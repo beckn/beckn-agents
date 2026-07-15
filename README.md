@@ -11,7 +11,7 @@ Skills are authored once in plain markdown and published as adapters for Claude 
 | Skill | What it does |
 |---|---|
 | [beckn-schema-builder](skills/beckn-schema-builder/skill.md) | Guides schema design decisions — when to create, how to abstract, inheritance vs composition, conformance checklist |
-| [beckn-payload-builder](skills/beckn-payload-builder/skill.md) | Generates complete, valid Beckn 2.0.0 payloads for any use case across retail, energy, and data domains |
+| [beckn-payload-builder](skills/beckn-payload-builder/skill.md) | Generates complete, valid Beckn 2.0.0 payloads for any use case across retail, energy, data, and mobility domains |
 | [beckn-onix-config](skills/beckn-onix-config/skill.md) | Helps configure Beckn-ONIX adapter YAML files — modules, plugins, routing rules, and deployment scenarios |
 
 ---

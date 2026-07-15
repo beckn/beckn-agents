@@ -203,6 +203,31 @@ Steps:
 
 ---
 
+## Flow 13: Mobility (ride-hailing / transit / rental)
+
+**Scenario signals**: cab, ride, taxi, bike/car rental, bus, metro, transit ticket, multimodal trip
+
+Same lifecycle shape as Flow 2/3, no mobility-specific step sequence:
+
+1. `discover` — BAP broadcasts intent (origin/destination geo, mode, time window)
+2. `on_discover` — BPP returns catalog of vehicle/route/fare options
+3. `select` — BAP picks an option; creates DRAFT contract
+4. `on_select` — BPP returns contract with fare estimate
+5. `init` — BAP adds passenger details, pickup/drop specifics, payment method
+6. `on_init` — BPP confirms fare and any reservation terms
+7. `confirm` — BAP finalises contract
+8. `on_confirm` — BPP returns ACTIVE contract (driver/vehicle assignment where applicable)
+9. `track` / `on_track` — live trip position during the ride
+10. `status` / `on_status` — trip state polling
+11. `cancel` / `on_cancel` — per Flow 4
+12. `rate` / `on_rate` — post-trip rating
+
+**Schema map**: not fixed here — see [domain-schemas-mobility.md](./domain-schemas-mobility.md) for the
+concept-category → `*Attributes` mapping, and fetch the actual concept/field names live from the
+`beckn/mobility` repo since that vocabulary evolves independently of this skill.
+
+---
+
 ## State machine — Contract.status.descriptor.code
 
 ```
