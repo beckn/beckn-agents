@@ -130,7 +130,7 @@ With JSONPath filter:
             "price": { "currency": "INR", "value": <base-price> },
             "isActive": true,
             "resourceAttributes": {
-              "@context": "https://schema.beckn.io/FnBItem/v2.1/context.jsonld",
+              "@context": "https://schema.nfh.global/FnBItem/v2.1/context.jsonld",
               "@type": "beckn:FnBItem",
               "classification": "VEG",
               "cuisine": "Italian",
@@ -145,7 +145,7 @@ With JSONPath filter:
             "resourceIds": ["<resource-id>"],
             "price": { "currency": "INR", "value": <price> },
             "offerAttributes": {
-              "@context": "https://schema.beckn.io/FnBOffer/v2.1/context.jsonld",
+              "@context": "https://schema.nfh.global/FnBOffer/v2.1/context.jsonld",
               "@type": "beckn:FnBOffer",
               "customization": {
                 "groups": [
@@ -206,7 +206,7 @@ With JSONPath filter:
   },
   "message": {
     "contract": {
-      "@context": "https://schema.beckn.io/Contract/v2.0",
+      "@context": "https://schema.nfh.global/Contract/v2.0",
       "@type": "beckn:Contract",
       "participants": [
         { "id": "<session-or-user-id>" },
@@ -219,7 +219,7 @@ With JSONPath filter:
           "resources": [{ "id": "<resource-id>", "quantity": { "unitCode": "EA", "unitQuantity": <qty> } }],
           "offer": { "id": "<offer-id>", "resourceIds": ["<resource-id>"] },
           "commitmentAttributes": {
-            "@context": "https://schema.beckn.io/FnBItem/v2.1/context.jsonld",
+            "@context": "https://schema.nfh.global/FnBItem/v2.1/context.jsonld",
             "@type": "beckn:FnBItem",
             "lineId": "line-001",
             "offerId": "<offer-id>",
@@ -257,7 +257,7 @@ With JSONPath filter:
   },
   "message": {
     "contract": {
-      "@context": "https://schema.beckn.io/Contract/v2.0",
+      "@context": "https://schema.nfh.global/Contract/v2.0",
       "@type": "beckn:Contract",
       "participants": [
         { "id": "<session-or-user-id>" },
@@ -280,7 +280,7 @@ With JSONPath filter:
           "resources": [{ "id": "<resource-id>", "quantity": { "unitCode": "EA", "unitQuantity": <qty> } }],
           "offer": { "id": "<offer-id>", "resourceIds": ["<resource-id>"] },
           "commitmentAttributes": {
-            "@context": "https://schema.beckn.io/FnBItem/v2.1/context.jsonld",
+            "@context": "https://schema.nfh.global/FnBItem/v2.1/context.jsonld",
             "@type": "beckn:FnBItem",
             "lineId": "line-001",
             "offerId": "<offer-id>",
@@ -304,7 +304,7 @@ With JSONPath filter:
           "id": "<consideration-id>",
           "status": { "descriptor": { "code": "PENDING" } },
           "considerationAttributes": {
-            "@context": "https://schema.beckn.io/FnBPriceSpecification/v2.1/context.jsonld",
+            "@context": "https://schema.nfh.global/FnBPriceSpecification/v2.1/context.jsonld",
             "@type": "beckn:FnBPriceSpecification",
             "currency": "INR",
             "value": <total>,
@@ -320,7 +320,7 @@ With JSONPath filter:
           "id": "<performance-id>",
           "status": { "descriptor": { "code": "PENDING" } },
           "performanceAttributes": {
-            "@context": "https://schema.beckn.io/HyperlocalDelivery/v2.0/context.jsonld",
+            "@context": "https://schema.nfh.global/HyperlocalDelivery/v2.0/context.jsonld",
             "@type": "beckn:HyperlocalDelivery",
             "pickupLocation": {
               "id": "<store-id>",
@@ -357,7 +357,7 @@ Same contract as `on_select`, with:
   "context": { "...action: init, same transactionId..." },
   "message": {
     "contract": {
-      "@context": "https://schema.beckn.io/Contract/v2.0",
+      "@context": "https://schema.nfh.global/Contract/v2.0",
       "@type": "beckn:Contract",
       "participants": [
         { "id": "<user@example.com>", "displayName": "<Buyer Name>", "telephone": "+91<phone>", "email": "<buyer@example.com>" },
@@ -370,7 +370,7 @@ Same contract as `on_select`, with:
           "id": "<performance-id>",
           "status": { "descriptor": { "code": "PENDING" } },
           "performanceAttributes": {
-            "@context": "https://schema.beckn.io/HyperlocalDelivery/v2.0/context.jsonld",
+            "@context": "https://schema.nfh.global/HyperlocalDelivery/v2.0/context.jsonld",
             "@type": "beckn:HyperlocalDelivery",
             "pickupLocation": { "...same store location..." },
             "deliveryLocation": {
@@ -432,7 +432,7 @@ Same as `init` response body — BPP echoes back with confirmation. No contract 
   },
   "message": {
     "contract": {
-      "@context": "https://schema.beckn.io/Contract/v2.0",
+      "@context": "https://schema.nfh.global/Contract/v2.0",
       "@type": "beckn:Contract",
       "participants": ["<fully populated consumer + restaurant>"],
       "commitments": ["<same as on_init>"],
@@ -477,7 +477,7 @@ Same as `init` response body — BPP echoes back with confirmation. No contract 
   },
   "message": {
     "contract": {
-      "@context": "https://schema.beckn.io/Contract/v2.0",
+      "@context": "https://schema.nfh.global/Contract/v2.0",
       "@type": "beckn:Contract",
       "id": "<contract-uuid>",
       "displayId": "<ORD-20260310-001>",
@@ -489,7 +489,7 @@ Same as `init` response body — BPP echoes back with confirmation. No contract 
           "id": "<consideration-id>",
           "status": { "descriptor": { "code": "PENDING" } },
           "considerationAttributes": {
-            "@context": "https://schema.beckn.io/FnBPriceSpecification/v2.1/context.jsonld",
+            "@context": "https://schema.nfh.global/FnBPriceSpecification/v2.1/context.jsonld",
             "@type": "beckn:FnBPriceSpecification",
             "currency": "INR",
             "value": <total>,
@@ -505,7 +505,7 @@ Same as `init` response body — BPP echoes back with confirmation. No contract 
           "id": "<performance-id>",
           "status": { "descriptor": { "code": "ACTIVE", "name": "Order Received", "shortDesc": "Being prepared" } },
           "performanceAttributes": {
-            "@context": "https://schema.beckn.io/HyperlocalDelivery/v2.0/context.jsonld",
+            "@context": "https://schema.nfh.global/HyperlocalDelivery/v2.0/context.jsonld",
             "@type": "beckn:HyperlocalDelivery",
             "pickupLocation": { "...store location..." },
             "deliveryLocation": { "...buyer address..." },
@@ -535,7 +535,7 @@ Same as `init` response body — BPP echoes back with confirmation. No contract 
   "context": { "...action: on_status, same transactionId..." },
   "message": {
     "contract": {
-      "@context": "https://schema.beckn.io/Contract/v2.0",
+      "@context": "https://schema.nfh.global/Contract/v2.0",
       "@type": "beckn:Contract",
       "id": "<contract-uuid>",
       "status": { "descriptor": { "code": "ACTIVE" } },
@@ -567,7 +567,7 @@ Same as `init` response body — BPP echoes back with confirmation. No contract 
   "context": { "...action: on_cancel, try: true..." },
   "message": {
     "contract": {
-      "@context": "https://schema.beckn.io/Contract/v2.0",
+      "@context": "https://schema.nfh.global/Contract/v2.0",
       "@type": "beckn:Contract",
       "id": "<contract-uuid>",
       "status": { "descriptor": { "code": "ACTIVE" } }
@@ -586,7 +586,7 @@ Same as `init` response body — BPP echoes back with confirmation. No contract 
   "context": { "...action: on_cancel..." },
   "message": {
     "contract": {
-      "@context": "https://schema.beckn.io/Contract/v2.0",
+      "@context": "https://schema.nfh.global/Contract/v2.0",
       "@type": "beckn:Contract",
       "id": "<contract-uuid>",
       "status": { "descriptor": { "code": "CANCELLED" } }
@@ -667,7 +667,7 @@ Before outputting any payload set, verify:
 - [ ] `resourceAttributes` on Resource (not `itemAttributes`)
 - [ ] `performance[]` in Contract (not `fulfillments[]`)
 - [ ] `performanceAttributes` on Performance (not `fulfillmentAttributes`)
-- [ ] Contract has `"@context": "https://schema.beckn.io/Contract/v2.0"` at top level
+- [ ] Contract has `"@context": "https://schema.nfh.global/Contract/v2.0"` at top level
 - [ ] Contract `status.code: "ACTIVE"` on on_confirm (not "CONFIRMED")
 - [ ] Participants use array `@context`/`@type`, direct props (no `participantAttributes` wrapper)
 - [ ] `considerationAttributes` uses `components[]` (not `breakup[]`), has `value` (not `totalAmount`)

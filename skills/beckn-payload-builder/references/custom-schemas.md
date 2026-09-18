@@ -14,6 +14,13 @@ Each uses JSON-LD (`@context` + `@type`) for semantic interoperability.
 
 **`@context`/`@type` rule**: Only `*Attributes` bags and the top-level `Contract` carry these. All other core objects (Descriptor, Location, Commitment envelope, Consideration envelope, Performance envelope, Resource envelope, Catalog, Participant, Entitlement) do NOT get `@context`/`@type`.
 
+> **Naming note**: the schemas below (e.g. `FnBItem`, `EvChargingOffer`, `GroceryItem`) are the
+> actual published artifacts in `beckn/schemas`/`beckn/DEG` — use their real names when generating
+> payloads. But per the upstream Schema Design Guide's current naming rules, several of these are
+> "legacy offending schemas": new schemas should NOT use generic `Item`/`Offer`/`Resource`/`Attributes`
+> suffixes going forward. If a user asks you to *propose a new* custom schema (not just use an
+> existing one), don't pattern-match a name off this catalogue — see `beckn-schema-builder` skill.
+
 ---
 
 ## Schema detection decision tree
@@ -60,13 +67,13 @@ None of the above?
 ### 1. FnBItem (Food & Beverage Item)
 
 **Attaches to**: `Item.resourceAttributes` and `Commitment.commitmentAttributes`
-**Context URI**: `https://schema.beckn.io/`
+**Context URI**: `https://schema.nfh.global/`
 **Type**: `beckn:FnBItem`
 **Use when**: Resource is a prepared food or beverage item
 
 ```json
 "resourceAttributes": {
-  "@context": "https://schema.beckn.io/",
+  "@context": "https://schema.nfh.global/",
   "@type": "beckn:FnBItem",
   "classification": "VEG",
   "cuisine": "Italian",
@@ -84,7 +91,7 @@ None of the above?
 **In commitmentAttributes** (also includes line-item fields):
 ```json
 "commitmentAttributes": {
-  "@context": "https://schema.beckn.io/",
+  "@context": "https://schema.nfh.global/",
   "@type": "beckn:FnBItem",
   "lineId": "line-001",
   "offerId": "offer-margherita-regular",
@@ -120,13 +127,13 @@ preparation:
 ### 2. FnBOffer (Food & Beverage Offer)
 
 **Attaches to**: `Offer.offerAttributes`
-**Context URI**: `https://schema.beckn.io/`
+**Context URI**: `https://schema.nfh.global/`
 **Type**: `beckn:FnBOffer`
 **Use when**: Food offer has customization options (size, toppings, sauces, extras)
 
 ```json
 "offerAttributes": {
-  "@context": "https://schema.beckn.io/",
+  "@context": "https://schema.nfh.global/",
   "@type": "beckn:FnBOffer",
   "customization": {
     "groups": [
@@ -178,13 +185,13 @@ options:
 ### 3. FnBPriceSpecification (Food & Beverage Consideration)
 
 **Attaches to**: `Consideration.considerationAttributes`
-**Context URI**: `https://schema.beckn.io/`
+**Context URI**: `https://schema.nfh.global/`
 **Type**: `beckn:FnBPriceSpecification`
 **Use when**: F&B monetary payment with price breakdown
 
 ```json
 "considerationAttributes": {
-  "@context": "https://schema.beckn.io/",
+  "@context": "https://schema.nfh.global/",
   "@type": "beckn:FnBPriceSpecification",
   "currency": "INR",
   "value": 929,
@@ -203,16 +210,16 @@ options:
 ### 4. HyperlocalDelivery (Fulfillment)
 
 **Attaches to**: `Fulfillment.performanceAttributes`
-**Context URI**: `https://schema.beckn.io/`
+**Context URI**: `https://schema.nfh.global/`
 **Type**: `beckn:HyperlocalDelivery`
 **Use when**: Physical delivery of food/retail from store to buyer
 
 ```json
 "performanceAttributes": {
-  "@context": "https://schema.beckn.io/",
+  "@context": "https://schema.nfh.global/",
   "@type": "beckn:HyperlocalDelivery",
   "pickupLocation": {
-    "@context": "https://schema.beckn.io/",
+    "@context": "https://schema.nfh.global/",
     "@type": "beckn:Location",
     "id": "store-id",
     "geo": { "type": "Point", "coordinates": [77.5946, 12.9716] },
@@ -225,7 +232,7 @@ options:
     }
   },
   "deliveryLocation": {
-    "@context": "https://schema.beckn.io/",
+    "@context": "https://schema.nfh.global/",
     "@type": "beckn:Location",
     "geo": { "type": "Point", "coordinates": [77.5946, 12.9716] },
     "address": {
@@ -238,7 +245,7 @@ options:
   },
   "itemsShipped": [
     {
-      "@context": ["https://schema.beckn.io/Resource/v2.0", "https://schema.beckn.io/FoodAndBeverageItem/v2.0"],
+      "@context": ["https://schema.nfh.global/Resource/v2.0", "https://schema.nfh.global/FoodAndBeverageItem/v2.0"],
       "@type": ["beckn:Resource", "beckn:FnBItem"],
       "itemId": "item-veg-margherita",
       "offerId": "offer-margherita-regular",
@@ -254,7 +261,7 @@ options:
 ### 5. GroceryItem
 
 **Attaches to**: `Item.resourceAttributes`
-**Context URI**: `https://schema.beckn.io/GroceryItem/v2.1/context.jsonld`
+**Context URI**: `https://schema.nfh.global/GroceryItem/v2.1/context.jsonld`
 **Type**: `groc:GroceryItemAttributes`
 **Use when**: Fresh produce or packaged grocery item
 
@@ -278,7 +285,7 @@ organic: boolean
 ### 6. HomeAndKitchenItem
 
 **Attaches to**: `Item.resourceAttributes`
-**Context URI**: `https://schema.beckn.io/HomeAndKitchenItem/v2.1/context.jsonld`
+**Context URI**: `https://schema.nfh.global/HomeAndKitchenItem/v2.1/context.jsonld`
 **Type**: `hkr:HomeAndKitchenItemAttributes`
 **Use when**: Furniture, appliance, kitchenware, home goods
 
@@ -300,7 +307,7 @@ installationAvailable: boolean
 ### 7. RetailOffer (base discount/availability)
 
 **Attaches to**: `Offer.offerAttributes`
-**Context URI**: `https://schema.beckn.io/RetailOffer/v2.1/context.jsonld`
+**Context URI**: `https://schema.nfh.global/RetailOffer/v2.1/context.jsonld`
 **Type**: `rco:RetailOfferAttributes`
 **Use when**: Standard retail offer with discounts or availability constraints
 
@@ -336,10 +343,10 @@ see [domain-schemas-energy-data.md](domain-schemas-energy-data.md).
 
 **Before proposing a new schema, always:**
 
-1. Check `https://schema.beckn.io` for existing schemas matching the domain
+1. Check `https://schema.nfh.global` for existing schemas matching the domain
 2. If the user has not specified a domain or schema set, ask:
    > "Which domain or schema catalogue should I check? (e.g. retail, energy/DEG, data/DDM, mobility, healthcare, or say 'none')"
-3. Only propose a new schema after confirming no existing schema at schema.beckn.io covers the required fields
+3. Only propose a new schema after confirming no existing schema at schema.nfh.global covers the required fields
 
 When a gap is confirmed, propose using this pattern:
 
@@ -357,7 +364,7 @@ components:
       additionalProperties: false
       x-beckn-container: <entityType>Attributes   # e.g. resourceAttributes, performanceAttributes
       x-jsonld:
-        "@context": "https://schema.beckn.io/<DomainName><EntityType>/v1.0/context.jsonld"
+        "@context": "https://schema.nfh.global/<DomainName><EntityType>/v1.0/context.jsonld"
         "@type": "<prefix>:<DomainName><EntityType>Attributes"
       properties:
         <property>:
@@ -365,12 +372,12 @@ components:
           description: <what this captures>
 ```
 
-**Naming**: class names PascalCase, URI pattern `https://schema.beckn.io/<Name>/v<version>/context.jsonld`
+**Naming**: class names PascalCase, URI pattern `https://schema.nfh.global/<Name>/v<version>/context.jsonld`
 
 **In the payload**, the new schema only appears inside its `*Attributes` bag:
 ```json
 "resourceAttributes": {
-  "@context": "https://schema.beckn.io/<DomainName><EntityType>/v1.0/context.jsonld",
+  "@context": "https://schema.nfh.global/<DomainName><EntityType>/v1.0/context.jsonld",
   "@type": "<prefix>:<DomainName><EntityType>Attributes",
   "<property>": "<value>"
 }

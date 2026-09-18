@@ -52,12 +52,12 @@ support / on_support
 
 ## Step 3 — Identify custom schemas
 
-**Before proposing any new schema**, check `https://schema.beckn.io` for existing schemas.
+**Before proposing any new schema**, check `https://schema.nfh.global` for existing schemas.
 
 If the user has not specified a domain or schema set, **ask**:
 > "Which domain or schema set should I check for existing schemas? (e.g. retail, energy/DEG, data/DDM, mobility, healthcare — or say 'none' to skip)"
 
-Only after confirming no suitable schema exists at schema.beckn.io should you propose a new one.
+Only after confirming no suitable schema exists at schema.nfh.global should you propose a new one.
 
 See [./references/custom-schemas.md](./references/custom-schemas.md) for the known catalogue.
 
@@ -108,6 +108,16 @@ Rules:
 - `messageId` new per request; callback echoes same `messageId`
 - No `domain` field — domain identity goes in `networkId` or catalog `@context`
 
+The core spec also defines these **optional** Context fields, only needed for DID-based auth,
+non-repudiation, or the two-phase preview pattern — omit them from ordinary sample payloads unless
+the use case specifically calls for one:
+- `senderId` / `receiverId` — DID of message sender/receiver, for signature-key resolution
+- `key` — sender's encryption public key, when the receiver should encrypt its response
+- `try` — boolean; `update`/`cancel` only; requests a dry-run preview without committing state
+- `schemaContext` — array of JSON-LD context URLs in scope for the transaction (distinct from the
+  `@context` keyword used inside `*Attributes` bags — don't conflate the two)
+- `requestDigest` — carries a hash of the originating request body for callback non-repudiation
+
 ### @context / @type rule — CRITICAL
 
 > **`@context` and `@type` belong ONLY on `*Attributes` extension objects and the top-level `Contract`.**
@@ -117,7 +127,7 @@ Rules:
 
 | Object | @context/@type? |
 |---|---|
-| `Contract` (top-level only) | ✅ Yes — `"@context": "https://schema.beckn.io/Contract/v2.0"` |
+| `Contract` (top-level only) | ✅ Yes — `"@context": "https://schema.nfh.global/Contract/v2.0"` |
 | `*Attributes` (all extension bags) | ✅ Yes — specifies which domain schema |
 | Everything else (Descriptor, Location, Participant, Commitment, Consideration, Performance, Resource, Offer, Catalog, Entitlement) | ❌ No |
 
@@ -138,7 +148,7 @@ Offers array under catalog: `offers[]` — each offer has `id`, `resourceIds[]`,
 
 ```
 message.contract
-  ├── @context: "https://schema.beckn.io/Contract/v2.0"
+  ├── @context: "https://schema.nfh.global/Contract/v2.0"
   ├── @type: "beckn:Contract"
   ├── id (UUID, assigned by BPP)
   ├── displayId (human-readable, e.g. "ORD-20260310-001")
@@ -161,7 +171,7 @@ Before writing any payload, confirm:
 - [ ] Context fields camelCase (`bapId` not `bap_id`, `messageId` not `message_id`)
 - [ ] No `domain` key in context
 - [ ] `version: "2.0.0"` present
-- [ ] Contract has top-level `@context: "https://schema.beckn.io/Contract/v2.0"` and `@type: "beckn:Contract"`
+- [ ] Contract has top-level `@context: "https://schema.nfh.global/Contract/v2.0"` and `@type: "beckn:Contract"`
 - [ ] `@context`/`@type` ONLY on `*Attributes` objects and the top-level Contract — NOT on Descriptor, Location, Consideration, Commitment, Performance, Participant, Resource, Offer, Catalog, Entitlement
 - [ ] Catalog uses `resources[]` not `items[]`
 - [ ] Contract uses `performance[]` not `fulfillments[]`
@@ -181,7 +191,7 @@ Ask yourself:
 - **Demand flex event?** → `DemandFlexNeed` in `resourceAttributes`; `DemandFlexBuyOffer` in `offerAttributes`
 - **Dataset/data exchange?** → `DatasetItem` in `resourceAttributes`; `DatasetFulfillment` in `performanceAttributes`
 - **Mobility (ride-hailing, transit, rental)?** → see [./references/domain-schemas-mobility.md](./references/domain-schemas-mobility.md); fetch concept/field names live from the `beckn/mobility` repo rather than assuming a fixed schema, then map by category onto `resourceAttributes`/`offerAttributes`/`commitmentAttributes`/`performanceAttributes`/`considerationAttributes`/Participant
-- **New domain?** → First check `https://schema.beckn.io` for existing schemas. Ask the user which domain/schema set to search. Only propose a new schema after confirming no existing one fits.
+- **New domain?** → First check `https://schema.nfh.global` for existing schemas. Ask the user which domain/schema set to search. Only propose a new schema after confirming no existing one fits.
 
 ## Step 7 — Output format
 

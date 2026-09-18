@@ -134,6 +134,7 @@ From the Schema Design Guide:
 
 - [ ] **Search first** — `schema.nfh.global` checked before authoring
 - [ ] **No conjoined names** — no `With`, `And`, `Plus` in schema names
+- [ ] **No generic-suffix names** — schema names must not end in `Attributes`, `Item`, `Offer`, or `Resource` merely to signal where they're carried (e.g. `GroceryItemAttributes`, `ElectronicsOffer`, `FlightItem` are non-conformant); express the carrier via an `x-recommended-parent` vendor extension in `attributes.yaml` plus `rdfs:subClassOf`/`skos:broader` in `vocab.jsonld` instead. Existing schemas like `GroceryItem` are grandfathered "offending schemas" requiring an `owl:sameAs`/`owl:deprecated` migration path in `vocab.jsonld`, not a precedent to copy in new schemas.
 - [ ] **No mandatory fields** — all fields optional by default; mandatoriness via network policy
 - [ ] **Descriptor-first** — if semantics fit in `Descriptor.name/shortDesc/longDesc`, no schema needed
 - [ ] **Structured only for machine use** — only add structured fields when needed for arithmetic, filtering, or cross-resource reference; replace restrictive enums with JSON-LD vocabulary terms
