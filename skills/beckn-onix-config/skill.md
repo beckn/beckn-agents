@@ -42,6 +42,11 @@ Plugin directory in the repo (`pkg/plugin/implementation/`) also has `encrypter`
 entries with no CONFIG.md section and no README as of this writing — treat as in-progress/internal,
 don't assume a stable config contract for them without checking the repo directly.
 
+The repo also now ships `catalogPublisher`, `catalogBlobStore` (dir name `localcatalogblobstore`),
+and `catalogcrawler` — data-marketplace/catalog-related plugins not yet folded into this skill's
+tables above. Check CONFIG.md directly for their wiring; don't assume the plugin list above is
+exhaustive.
+
 ---
 
 ## How to help a developer
