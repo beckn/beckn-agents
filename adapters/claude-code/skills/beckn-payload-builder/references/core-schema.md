@@ -13,12 +13,12 @@
 
 1. **The `Contract` object** (top-level linked-data anchor):
    ```json
-   { "@context": "https://schema.beckn.io/Contract/v2.0", "@type": "beckn:Contract", ... }
+   { "@context": "https://schema.nfh.global/Contract/v2.0/context.jsonld", "@type": "beckn:Contract", ... }
    ```
 
 2. **All `*Attributes` extension bags** (`resourceAttributes`, `offerAttributes`, `commitmentAttributes`, `performanceAttributes`, `considerationAttributes`, `contractAttributes`):
    ```json
-   { "@context": "https://schema.beckn.io/FnBItem/v2.1/context.jsonld", "@type": "beckn:FnBItem", ... }
+   { "@context": "https://schema.nfh.global/FnBItem/v2.1/context.jsonld", "@type": "beckn:FnBItem", ... }
    ```
 
 **Everything else does NOT get `@context`/`@type`:**
@@ -79,7 +79,7 @@ Context:
   bapUri: uri                # BAP callback URL
   bppId: string              # BPP subscriber ID — ABSENT only on discover
   bppUri: uri                # BPP request URL — ABSENT only on discover
-  networkId: string          # "beckn:<namespace>:<region>" e.g. "beckn:retail-network:in"
+  networkId: string          # "<namespace_id>/<registry_id>" e.g. "beckn.one/testnet-retail"
   ttl: string                # ISO 8601 duration e.g. "PT30S"
 ```
 
@@ -91,14 +91,14 @@ Context:
 
 ```yaml
 Catalog:
-  "@context": "https://schema.beckn.io/"
+  "@context": "https://schema.nfh.global/"
   "@type": "beckn:Catalog"
   id: string
   bppId: string              # echoed from context
   bppUri: string             # echoed from context
   providerId: string
   descriptor:
-    "@context": "https://schema.beckn.io/"
+    "@context": "https://schema.nfh.global/"
     "@type": "beckn:Descriptor"
     name: string
     shortDesc: string
@@ -111,11 +111,11 @@ Catalog:
 
 ```yaml
 Item:
-  "@context": "https://schema.beckn.io/"
+  "@context": "https://schema.nfh.global/"
   "@type": "beckn:Resource"
   id: string
   descriptor:
-    "@context": "https://schema.beckn.io/"
+    "@context": "https://schema.nfh.global/"
     "@type": "beckn:Descriptor"
     name: string
     shortDesc: string
@@ -130,7 +130,7 @@ Item:
     value: number
   isActive: boolean
   resourceAttributes:            # domain extension — NOT "resourceAttributes"
-    "@context": "https://schema.beckn.io/"
+    "@context": "https://schema.nfh.global/"
     "@type": "beckn:<DomainItemType>"
     # ... domain fields
 ```
@@ -139,7 +139,7 @@ Item:
 
 ```yaml
 Offer:
-  "@context": "https://schema.beckn.io/"
+  "@context": "https://schema.nfh.global/"
   "@type": "beckn:Offer" | "beckn:FnBOffer"
   id: string
   itemId: string
@@ -147,7 +147,7 @@ Offer:
     currency: string
     value: number
   offerAttributes:           # domain extension
-    "@context": "https://schema.beckn.io/"
+    "@context": "https://schema.nfh.global/"
     "@type": "beckn:<DomainOfferType>"
     customization:
       groups: CustomizationGroup[]
@@ -159,12 +159,12 @@ Offer:
 
 ```yaml
 Contract:
-  "@context": "https://schema.beckn.io/Contract/v2.0"   # required top-level JSON-LD
+  "@context": "https://schema.nfh.global/Contract/v2.0/context.jsonld"   # required top-level JSON-LD
   "@type": "beckn:Contract"
   id: string                    # uuid assigned by BPP (absent in early DRAFT)
   displayId: string             # human-readable e.g. "DOM-BLR-20260310-001"
   status:
-    "@context": "https://schema.beckn.io/"
+    "@context": "https://schema.nfh.global/"
     "@type": "beckn:Descriptor"
     code: DRAFT | ACTIVE | COMPLETE | CANCELLED
   participants: Participant[]
@@ -187,8 +187,8 @@ Participants use multi-value `@context` and `@type` arrays. Properties are place
 ```yaml
 Participant:
   "@context":                   # array of JSON-LD contexts
-    - "https://schema.beckn.io/Participant/v2.0"
-    - "https://schema.beckn.io/Consumer/v2.0"     # role-specific context
+    - "https://schema.nfh.global/Participant/v2.0"
+    - "https://schema.nfh.global/Consumer/v2.0"     # role-specific context
   "@type":                      # array of types
     - "beckn:Participant"
     - "beckn:Consumer"          # role-specific type
@@ -204,8 +204,8 @@ Participant:
 ```
 
 **Common participant roles**:
-- Consumer: `"https://schema.beckn.io/Consumer/v2.0"` / `"beckn:Consumer"`
-- Restaurant: `"https://schema.beckn.io/Restaurant/v2.0"` / `"beckn:Restaurant"`
+- Consumer: `"https://schema.nfh.global/Consumer/v2.0"` / `"beckn:Consumer"`
+- Restaurant: `"https://schema.nfh.global/Restaurant/v2.0"` / `"beckn:Restaurant"`
 - EnergyCustomer: add EnergyCustomer context + type
 - DSO/Utility: add relevant context + type
 
@@ -213,11 +213,11 @@ Participant:
 
 ```yaml
 Commitment:
-  "@context": "https://schema.beckn.io/"
+  "@context": "https://schema.nfh.global/"
   "@type": "beckn:Commitment"
   ref: string                   # item/resource ID being committed
   commitmentAttributes:         # domain extension — contains line details
-    "@context": "https://schema.beckn.io/"
+    "@context": "https://schema.nfh.global/"
     "@type": "beckn:<DomainCommitmentType>"
     lineId: string              # e.g. "line-001"
     offerId: string
@@ -231,7 +231,7 @@ Commitment:
     resourceId: string          # mirrors ref
     # ... domain fields (classification, cuisine, allergenInfo, etc.)
     item:                       # inline Item object (echoed by BPP)
-      "@context": "https://schema.beckn.io/"
+      "@context": "https://schema.nfh.global/"
       "@type": "beckn:Resource"
       id: string
       descriptor: Descriptor
@@ -239,7 +239,7 @@ Commitment:
       price: { currency, value }
       isActive: boolean
     offer:                      # inline Offer object (echoed by BPP)
-      "@context": "https://schema.beckn.io/"
+      "@context": "https://schema.nfh.global/"
       "@type": "beckn:Offer" | "beckn:FnBOffer"
       id: string
       itemId: string
@@ -251,14 +251,14 @@ Commitment:
 
 ```yaml
 Consideration:
-  "@context": "https://schema.beckn.io/"
+  "@context": "https://schema.nfh.global/"
   "@type": "beckn:Consideration"
   status:
-    "@context": "https://schema.beckn.io/"
+    "@context": "https://schema.nfh.global/"
     "@type": "beckn:Descriptor"
     code: PENDING | SETTLED | VOIDED
   considerationAttributes:
-    "@context": "https://schema.beckn.io/"
+    "@context": "https://schema.nfh.global/"
     "@type": "beckn:<DomainPriceType>"    # e.g. beckn:FnBPriceSpecification
     currency: string
     value: number                         # total amount
@@ -273,16 +273,16 @@ Consideration:
 
 ```yaml
 Fulfillment:
-  "@context": "https://schema.beckn.io/"
+  "@context": "https://schema.nfh.global/"
   "@type": "beckn:Fulfillment"
   id: string
   status:
-    "@context": "https://schema.beckn.io/"
+    "@context": "https://schema.nfh.global/"
     "@type": "beckn:Descriptor"
     name: string                # human-readable e.g. "Order Received"
     shortDesc: string
   performanceAttributes:        # NOT "performanceAttributes"
-    "@context": "https://schema.beckn.io/"
+    "@context": "https://schema.nfh.global/"
     "@type": "beckn:<FulfillmentType>"   # e.g. beckn:HyperlocalDelivery
     # ... fulfillment-type fields
 ```
@@ -307,7 +307,7 @@ HyperlocalDelivery:
 ```yaml
 Entitlement:
   descriptor:
-    "@context": "https://schema.beckn.io/"
+    "@context": "https://schema.nfh.global/"
     "@type": "beckn:Descriptor"
     name: string
     shortDesc: string
@@ -322,7 +322,7 @@ Entitlement:
 ### Descriptor
 ```yaml
 Descriptor:
-  "@context": "https://schema.beckn.io/"
+  "@context": "https://schema.nfh.global/"
   "@type": "beckn:Descriptor"
   name: string
   shortDesc: string
@@ -341,7 +341,7 @@ QuantityMeasure:
 ### Location
 ```yaml
 Location:
-  "@context": "https://schema.beckn.io/"
+  "@context": "https://schema.nfh.global/"
   "@type": "beckn:Location"
   id: string
   geo:
@@ -362,6 +362,8 @@ Intent:
   filters:                     # JSONPath RFC 9535
     type: "jsonpath"
     expression: string         # e.g. "$[?(@.resourceAttributes.food.classification == 'VEG')]"
+                                # RFC 9535 comparisons only: ==, !=, <, <=, >, >=, &&, ||, !
+                                # no non-standard operators (~, contains, =~) or JSONPath-Plus-only syntax
   spatial:
     - op: S_DWITHIN
       targets: string          # JSONPath to geo field
@@ -378,7 +380,7 @@ Tracking:
   url: uri
   websocketUrl: uri
   status:
-    "@context": "https://schema.beckn.io/"
+    "@context": "https://schema.nfh.global/"
     "@type": "beckn:Descriptor"
     code: ACTIVE | INACTIVE
 ```

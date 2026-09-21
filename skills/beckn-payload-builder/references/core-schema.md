@@ -13,7 +13,7 @@
 
 1. **The `Contract` object** (top-level linked-data anchor):
    ```json
-   { "@context": "https://schema.nfh.global/Contract/v2.0", "@type": "beckn:Contract", ... }
+   { "@context": "https://schema.nfh.global/Contract/v2.0/context.jsonld", "@type": "beckn:Contract", ... }
    ```
 
 2. **All `*Attributes` extension bags** (`resourceAttributes`, `offerAttributes`, `commitmentAttributes`, `performanceAttributes`, `considerationAttributes`, `contractAttributes`):
@@ -79,7 +79,7 @@ Context:
   bapUri: uri                # BAP callback URL
   bppId: string              # BPP subscriber ID — ABSENT only on discover
   bppUri: uri                # BPP request URL — ABSENT only on discover
-  networkId: string          # "beckn:<namespace>:<region>" e.g. "beckn:retail-network:in"
+  networkId: string          # "<namespace_id>/<registry_id>" e.g. "beckn.one/testnet-retail"
   ttl: string                # ISO 8601 duration e.g. "PT30S"
 ```
 
@@ -159,7 +159,7 @@ Offer:
 
 ```yaml
 Contract:
-  "@context": "https://schema.nfh.global/Contract/v2.0"   # required top-level JSON-LD
+  "@context": "https://schema.nfh.global/Contract/v2.0/context.jsonld"   # required top-level JSON-LD
   "@type": "beckn:Contract"
   id: string                    # uuid assigned by BPP (absent in early DRAFT)
   displayId: string             # human-readable e.g. "DOM-BLR-20260310-001"
@@ -362,6 +362,8 @@ Intent:
   filters:                     # JSONPath RFC 9535
     type: "jsonpath"
     expression: string         # e.g. "$[?(@.resourceAttributes.food.classification == 'VEG')]"
+                                # RFC 9535 comparisons only: ==, !=, <, <=, >, >=, &&, ||, !
+                                # no non-standard operators (~, contains, =~) or JSONPath-Plus-only syntax
   spatial:
     - op: S_DWITHIN
       targets: string          # JSONPath to geo field

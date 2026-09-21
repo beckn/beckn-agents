@@ -50,12 +50,15 @@ support / on_support
 
 ## Step 3 — Identify custom schemas
 
-**Before proposing any new schema**, check `https://schema.beckn.io` for existing schemas.
+**Before proposing any new schema**, check in this order:
+1. `https://schema.nfh.global` for existing Beckn-registered schemas
+2. `https://schema.org` for a general-purpose type that already covers the need
+3. Only propose a new schema after confirming neither source has a suitable fit
 
 If the user has not specified a domain or schema set, **ask**:
 > "Which domain or schema set should I check for existing schemas? (e.g. retail, energy/DEG, data/DDM, mobility, healthcare — or say 'none' to skip)"
 
-Only after confirming no suitable schema exists at schema.beckn.io should you propose a new one.
+Before checking schema.org, confirm with the user that schema.nfh.global didn't have a fit and that you're broadening the search there — don't silently fall through.
 
 See [./references/custom-schemas.md](./references/custom-schemas.md) for the known catalogue.
 
@@ -90,7 +93,7 @@ See [./references/payload-templates.md](./references/payload-templates.md) for c
     "bapUri": "https://<bap.example.com>/beckn",
     "bppId": "<bpp.example.com>",
     "bppUri": "https://<bpp.example.com>/beckn",
-    "networkId": "beckn:<network-id>",
+    "networkId": "<namespace_id>/<registry_id>",
     "transactionId": "<uuid-same-across-flow>",
     "messageId": "<uuid-new-per-pair>",
     "timestamp": "<ISO8601-UTC>",
@@ -105,6 +108,17 @@ Rules:
 - `transactionId` same across entire discover→confirm flow
 - `messageId` new per request; callback echoes same `messageId`
 - No `domain` field — domain identity goes in `networkId` or catalog `@context`
+- `networkId` format: `namespace_id/registry_id`, e.g. `beckn.one/testnet-retail` or `ondc.org/fis-network` — no `beckn:` prefix
+
+The core spec also defines these **optional** Context fields, only needed for DID-based auth,
+non-repudiation, or the two-phase preview pattern — omit them from ordinary sample payloads unless
+the use case specifically calls for one:
+- `senderId` / `receiverId` — DID of message sender/receiver, for signature-key resolution
+- `key` — sender's encryption public key, when the receiver should encrypt its response
+- `try` — boolean; `update`/`cancel` only; requests a dry-run preview without committing state
+- `schemaContext` — array of JSON-LD context URLs in scope for the transaction (distinct from the
+  `@context` keyword used inside `*Attributes` bags — don't conflate the two)
+- `requestDigest` — carries a hash of the originating request body for callback non-repudiation
 
 ### @context / @type rule — CRITICAL
 
@@ -115,7 +129,7 @@ Rules:
 
 | Object | @context/@type? |
 |---|---|
-| `Contract` (top-level only) | ✅ Yes — `"@context": "https://schema.beckn.io/Contract/v2.0"` |
+| `Contract` (top-level only) | ✅ Yes — `"@context": "https://schema.nfh.global/Contract/v2.0/context.jsonld"` |
 | `*Attributes` (all extension bags) | ✅ Yes — specifies which domain schema |
 | Everything else (Descriptor, Location, Participant, Commitment, Consideration, Performance, Resource, Offer, Catalog, Entitlement) | ❌ No |
 
@@ -136,7 +150,7 @@ Offers array under catalog: `offers[]` — each offer has `id`, `resourceIds[]`,
 
 ```
 message.contract
-  ├── @context: "https://schema.beckn.io/Contract/v2.0"
+  ├── @context: "https://schema.nfh.global/Contract/v2.0/context.jsonld"
   ├── @type: "beckn:Contract"
   ├── id (UUID, assigned by BPP)
   ├── displayId (human-readable, e.g. "ORD-20260310-001")
@@ -159,7 +173,7 @@ Before writing any payload, confirm:
 - [ ] Context fields camelCase (`bapId` not `bap_id`, `messageId` not `message_id`)
 - [ ] No `domain` key in context
 - [ ] `version: "2.0.0"` present
-- [ ] Contract has top-level `@context: "https://schema.beckn.io/Contract/v2.0"` and `@type: "beckn:Contract"`
+- [ ] Contract has top-level `@context: "https://schema.nfh.global/Contract/v2.0/context.jsonld"` and `@type: "beckn:Contract"`
 - [ ] `@context`/`@type` ONLY on `*Attributes` objects and the top-level Contract — NOT on Descriptor, Location, Consideration, Commitment, Performance, Participant, Resource, Offer, Catalog, Entitlement
 - [ ] Catalog uses `resources[]` not `items[]`
 - [ ] Contract uses `performance[]` not `fulfillments[]`
@@ -179,7 +193,7 @@ Ask yourself:
 - **Demand flex event?** → `DemandFlexNeed` in `resourceAttributes`; `DemandFlexBuyOffer` in `offerAttributes`
 - **Dataset/data exchange?** → `DatasetItem` in `resourceAttributes`; `DatasetFulfillment` in `performanceAttributes`
 - **Mobility (ride-hailing, transit, rental)?** → see [./references/domain-schemas-mobility.md](./references/domain-schemas-mobility.md); fetch concept/field names live from the `beckn/mobility` repo rather than assuming a fixed schema, then map by category onto `resourceAttributes`/`offerAttributes`/`commitmentAttributes`/`performanceAttributes`/`considerationAttributes`/Participant
-- **New domain?** → First check `https://schema.beckn.io` for existing schemas. Ask the user which domain/schema set to search. Only propose a new schema after confirming no existing one fits.
+- **New domain?** → First check `https://schema.nfh.global` for existing schemas. Ask the user which domain/schema set to search. Only propose a new schema after confirming no existing one fits.
 
 ## Step 7 — Output format
 
@@ -217,12 +231,12 @@ Ask yourself:
 
 1. **The `Contract` object** (top-level linked-data anchor):
    ```json
-   { "@context": "https://schema.beckn.io/Contract/v2.0", "@type": "beckn:Contract", ... }
+   { "@context": "https://schema.nfh.global/Contract/v2.0/context.jsonld", "@type": "beckn:Contract", ... }
    ```
 
 2. **All `*Attributes` extension bags** (`resourceAttributes`, `offerAttributes`, `commitmentAttributes`, `performanceAttributes`, `considerationAttributes`, `contractAttributes`):
    ```json
-   { "@context": "https://schema.beckn.io/FnBItem/v2.1/context.jsonld", "@type": "beckn:FnBItem", ... }
+   { "@context": "https://schema.nfh.global/FnBItem/v2.1/context.jsonld", "@type": "beckn:FnBItem", ... }
    ```
 
 **Everything else does NOT get `@context`/`@type`:**
@@ -283,7 +297,7 @@ Context:
   bapUri: uri                # BAP callback URL
   bppId: string              # BPP subscriber ID — ABSENT only on discover
   bppUri: uri                # BPP request URL — ABSENT only on discover
-  networkId: string          # "beckn:<namespace>:<region>" e.g. "beckn:retail-network:in"
+  networkId: string          # "<namespace_id>/<registry_id>" e.g. "beckn.one/testnet-retail"
   ttl: string                # ISO 8601 duration e.g. "PT30S"
 ```
 
@@ -295,14 +309,14 @@ Context:
 
 ```yaml
 Catalog:
-  "@context": "https://schema.beckn.io/"
+  "@context": "https://schema.nfh.global/"
   "@type": "beckn:Catalog"
   id: string
   bppId: string              # echoed from context
   bppUri: string             # echoed from context
   providerId: string
   descriptor:
-    "@context": "https://schema.beckn.io/"
+    "@context": "https://schema.nfh.global/"
     "@type": "beckn:Descriptor"
     name: string
     shortDesc: string
@@ -315,11 +329,11 @@ Catalog:
 
 ```yaml
 Item:
-  "@context": "https://schema.beckn.io/"
+  "@context": "https://schema.nfh.global/"
   "@type": "beckn:Resource"
   id: string
   descriptor:
-    "@context": "https://schema.beckn.io/"
+    "@context": "https://schema.nfh.global/"
     "@type": "beckn:Descriptor"
     name: string
     shortDesc: string
@@ -334,7 +348,7 @@ Item:
     value: number
   isActive: boolean
   resourceAttributes:            # domain extension — NOT "resourceAttributes"
-    "@context": "https://schema.beckn.io/"
+    "@context": "https://schema.nfh.global/"
     "@type": "beckn:<DomainItemType>"
     # ... domain fields
 ```
@@ -343,7 +357,7 @@ Item:
 
 ```yaml
 Offer:
-  "@context": "https://schema.beckn.io/"
+  "@context": "https://schema.nfh.global/"
   "@type": "beckn:Offer" | "beckn:FnBOffer"
   id: string
   itemId: string
@@ -351,7 +365,7 @@ Offer:
     currency: string
     value: number
   offerAttributes:           # domain extension
-    "@context": "https://schema.beckn.io/"
+    "@context": "https://schema.nfh.global/"
     "@type": "beckn:<DomainOfferType>"
     customization:
       groups: CustomizationGroup[]
@@ -363,12 +377,12 @@ Offer:
 
 ```yaml
 Contract:
-  "@context": "https://schema.beckn.io/Contract/v2.0"   # required top-level JSON-LD
+  "@context": "https://schema.nfh.global/Contract/v2.0/context.jsonld"   # required top-level JSON-LD
   "@type": "beckn:Contract"
   id: string                    # uuid assigned by BPP (absent in early DRAFT)
   displayId: string             # human-readable e.g. "DOM-BLR-20260310-001"
   status:
-    "@context": "https://schema.beckn.io/"
+    "@context": "https://schema.nfh.global/"
     "@type": "beckn:Descriptor"
     code: DRAFT | ACTIVE | COMPLETE | CANCELLED
   participants: Participant[]
@@ -391,8 +405,8 @@ Participants use multi-value `@context` and `@type` arrays. Properties are place
 ```yaml
 Participant:
   "@context":                   # array of JSON-LD contexts
-    - "https://schema.beckn.io/Participant/v2.0"
-    - "https://schema.beckn.io/Consumer/v2.0"     # role-specific context
+    - "https://schema.nfh.global/Participant/v2.0"
+    - "https://schema.nfh.global/Consumer/v2.0"     # role-specific context
   "@type":                      # array of types
     - "beckn:Participant"
     - "beckn:Consumer"          # role-specific type
@@ -408,8 +422,8 @@ Participant:
 ```
 
 **Common participant roles**:
-- Consumer: `"https://schema.beckn.io/Consumer/v2.0"` / `"beckn:Consumer"`
-- Restaurant: `"https://schema.beckn.io/Restaurant/v2.0"` / `"beckn:Restaurant"`
+- Consumer: `"https://schema.nfh.global/Consumer/v2.0"` / `"beckn:Consumer"`
+- Restaurant: `"https://schema.nfh.global/Restaurant/v2.0"` / `"beckn:Restaurant"`
 - EnergyCustomer: add EnergyCustomer context + type
 - DSO/Utility: add relevant context + type
 
@@ -417,11 +431,11 @@ Participant:
 
 ```yaml
 Commitment:
-  "@context": "https://schema.beckn.io/"
+  "@context": "https://schema.nfh.global/"
   "@type": "beckn:Commitment"
   ref: string                   # item/resource ID being committed
   commitmentAttributes:         # domain extension — contains line details
-    "@context": "https://schema.beckn.io/"
+    "@context": "https://schema.nfh.global/"
     "@type": "beckn:<DomainCommitmentType>"
     lineId: string              # e.g. "line-001"
     offerId: string
@@ -435,7 +449,7 @@ Commitment:
     resourceId: string          # mirrors ref
     # ... domain fields (classification, cuisine, allergenInfo, etc.)
     item:                       # inline Item object (echoed by BPP)
-      "@context": "https://schema.beckn.io/"
+      "@context": "https://schema.nfh.global/"
       "@type": "beckn:Resource"
       id: string
       descriptor: Descriptor
@@ -443,7 +457,7 @@ Commitment:
       price: { currency, value }
       isActive: boolean
     offer:                      # inline Offer object (echoed by BPP)
-      "@context": "https://schema.beckn.io/"
+      "@context": "https://schema.nfh.global/"
       "@type": "beckn:Offer" | "beckn:FnBOffer"
       id: string
       itemId: string
@@ -455,14 +469,14 @@ Commitment:
 
 ```yaml
 Consideration:
-  "@context": "https://schema.beckn.io/"
+  "@context": "https://schema.nfh.global/"
   "@type": "beckn:Consideration"
   status:
-    "@context": "https://schema.beckn.io/"
+    "@context": "https://schema.nfh.global/"
     "@type": "beckn:Descriptor"
     code: PENDING | SETTLED | VOIDED
   considerationAttributes:
-    "@context": "https://schema.beckn.io/"
+    "@context": "https://schema.nfh.global/"
     "@type": "beckn:<DomainPriceType>"    # e.g. beckn:FnBPriceSpecification
     currency: string
     value: number                         # total amount
@@ -477,16 +491,16 @@ Consideration:
 
 ```yaml
 Fulfillment:
-  "@context": "https://schema.beckn.io/"
+  "@context": "https://schema.nfh.global/"
   "@type": "beckn:Fulfillment"
   id: string
   status:
-    "@context": "https://schema.beckn.io/"
+    "@context": "https://schema.nfh.global/"
     "@type": "beckn:Descriptor"
     name: string                # human-readable e.g. "Order Received"
     shortDesc: string
   performanceAttributes:        # NOT "performanceAttributes"
-    "@context": "https://schema.beckn.io/"
+    "@context": "https://schema.nfh.global/"
     "@type": "beckn:<FulfillmentType>"   # e.g. beckn:HyperlocalDelivery
     # ... fulfillment-type fields
 ```
@@ -511,7 +525,7 @@ HyperlocalDelivery:
 ```yaml
 Entitlement:
   descriptor:
-    "@context": "https://schema.beckn.io/"
+    "@context": "https://schema.nfh.global/"
     "@type": "beckn:Descriptor"
     name: string
     shortDesc: string
@@ -526,7 +540,7 @@ Entitlement:
 ### Descriptor
 ```yaml
 Descriptor:
-  "@context": "https://schema.beckn.io/"
+  "@context": "https://schema.nfh.global/"
   "@type": "beckn:Descriptor"
   name: string
   shortDesc: string
@@ -545,7 +559,7 @@ QuantityMeasure:
 ### Location
 ```yaml
 Location:
-  "@context": "https://schema.beckn.io/"
+  "@context": "https://schema.nfh.global/"
   "@type": "beckn:Location"
   id: string
   geo:
@@ -566,6 +580,8 @@ Intent:
   filters:                     # JSONPath RFC 9535
     type: "jsonpath"
     expression: string         # e.g. "$[?(@.resourceAttributes.food.classification == 'VEG')]"
+                                # RFC 9535 comparisons only: ==, !=, <, <=, >, >=, &&, ||, !
+                                # no non-standard operators (~, contains, =~) or JSONPath-Plus-only syntax
   spatial:
     - op: S_DWITHIN
       targets: string          # JSONPath to geo field
@@ -582,7 +598,7 @@ Tracking:
   url: uri
   websocketUrl: uri
   status:
-    "@context": "https://schema.beckn.io/"
+    "@context": "https://schema.nfh.global/"
     "@type": "beckn:Descriptor"
     code: ACTIVE | INACTIVE
 ```
@@ -637,6 +653,13 @@ Each uses JSON-LD (`@context` + `@type`) for semantic interoperability.
 
 **`@context`/`@type` rule**: Only `*Attributes` bags and the top-level `Contract` carry these. All other core objects (Descriptor, Location, Commitment envelope, Consideration envelope, Performance envelope, Resource envelope, Catalog, Participant, Entitlement) do NOT get `@context`/`@type`.
 
+> **Naming note**: the schemas below (e.g. `FnBItem`, `EvChargingOffer`, `GroceryItem`) are the
+> actual published artifacts in `beckn/schemas`/`beckn/DEG` — use their real names when generating
+> payloads. But per the upstream Schema Design Guide's current naming rules, several of these are
+> "legacy offending schemas": new schemas should NOT use generic `Item`/`Offer`/`Resource`/`Attributes`
+> suffixes going forward. If a user asks you to *propose a new* custom schema (not just use an
+> existing one), don't pattern-match a name off this catalogue — see `beckn-schema-builder` skill.
+
 ---
 
 ## Schema detection decision tree
@@ -683,13 +706,13 @@ None of the above?
 ### 1. FnBItem (Food & Beverage Item)
 
 **Attaches to**: `Item.resourceAttributes` and `Commitment.commitmentAttributes`
-**Context URI**: `https://schema.beckn.io/`
+**Context URI**: `https://schema.nfh.global/FnBItem/v2.1/context.jsonld`
 **Type**: `beckn:FnBItem`
 **Use when**: Resource is a prepared food or beverage item
 
 ```json
 "resourceAttributes": {
-  "@context": "https://schema.beckn.io/",
+  "@context": "https://schema.nfh.global/FnBItem/v2.1/context.jsonld",
   "@type": "beckn:FnBItem",
   "classification": "VEG",
   "cuisine": "Italian",
@@ -707,7 +730,7 @@ None of the above?
 **In commitmentAttributes** (also includes line-item fields):
 ```json
 "commitmentAttributes": {
-  "@context": "https://schema.beckn.io/",
+  "@context": "https://schema.nfh.global/FnBItem/v2.1/context.jsonld",
   "@type": "beckn:FnBItem",
   "lineId": "line-001",
   "offerId": "offer-margherita-regular",
@@ -743,13 +766,13 @@ preparation:
 ### 2. FnBOffer (Food & Beverage Offer)
 
 **Attaches to**: `Offer.offerAttributes`
-**Context URI**: `https://schema.beckn.io/`
+**Context URI**: `https://schema.nfh.global/FnBOffer/v2.1/context.jsonld`
 **Type**: `beckn:FnBOffer`
 **Use when**: Food offer has customization options (size, toppings, sauces, extras)
 
 ```json
 "offerAttributes": {
-  "@context": "https://schema.beckn.io/",
+  "@context": "https://schema.nfh.global/FnBOffer/v2.1/context.jsonld",
   "@type": "beckn:FnBOffer",
   "customization": {
     "groups": [
@@ -801,13 +824,13 @@ options:
 ### 3. FnBPriceSpecification (Food & Beverage Consideration)
 
 **Attaches to**: `Consideration.considerationAttributes`
-**Context URI**: `https://schema.beckn.io/`
+**Context URI**: `https://schema.nfh.global/FnBPriceSpecification/v2.1/context.jsonld`
 **Type**: `beckn:FnBPriceSpecification`
 **Use when**: F&B monetary payment with price breakdown
 
 ```json
 "considerationAttributes": {
-  "@context": "https://schema.beckn.io/",
+  "@context": "https://schema.nfh.global/FnBPriceSpecification/v2.1/context.jsonld",
   "@type": "beckn:FnBPriceSpecification",
   "currency": "INR",
   "value": 929,
@@ -826,16 +849,16 @@ options:
 ### 4. HyperlocalDelivery (Fulfillment)
 
 **Attaches to**: `Fulfillment.performanceAttributes`
-**Context URI**: `https://schema.beckn.io/`
+**Context URI**: `https://schema.nfh.global/HyperlocalDelivery/v2.1/context.jsonld`
 **Type**: `beckn:HyperlocalDelivery`
 **Use when**: Physical delivery of food/retail from store to buyer
 
 ```json
 "performanceAttributes": {
-  "@context": "https://schema.beckn.io/",
+  "@context": "https://schema.nfh.global/HyperlocalDelivery/v2.1/context.jsonld",
   "@type": "beckn:HyperlocalDelivery",
   "pickupLocation": {
-    "@context": "https://schema.beckn.io/",
+    "@context": "https://schema.nfh.global/Location/v2.0/context.jsonld",
     "@type": "beckn:Location",
     "id": "store-id",
     "geo": { "type": "Point", "coordinates": [77.5946, 12.9716] },
@@ -848,7 +871,7 @@ options:
     }
   },
   "deliveryLocation": {
-    "@context": "https://schema.beckn.io/",
+    "@context": "https://schema.nfh.global/Location/v2.0/context.jsonld",
     "@type": "beckn:Location",
     "geo": { "type": "Point", "coordinates": [77.5946, 12.9716] },
     "address": {
@@ -861,7 +884,7 @@ options:
   },
   "itemsShipped": [
     {
-      "@context": ["https://schema.beckn.io/Resource/v2.0", "https://schema.beckn.io/FoodAndBeverageItem/v2.0"],
+      "@context": ["https://schema.nfh.global/Resource/v2.0/context.jsonld", "https://schema.nfh.global/FnBItem/v2.1/context.jsonld"],
       "@type": ["beckn:Resource", "beckn:FnBItem"],
       "itemId": "item-veg-margherita",
       "offerId": "offer-margherita-regular",
@@ -877,7 +900,7 @@ options:
 ### 5. GroceryItem
 
 **Attaches to**: `Item.resourceAttributes`
-**Context URI**: `https://schema.beckn.io/GroceryItem/v2.1/context.jsonld`
+**Context URI**: `https://schema.nfh.global/GroceryItem/v2.1/context.jsonld`
 **Type**: `groc:GroceryItemAttributes`
 **Use when**: Fresh produce or packaged grocery item
 
@@ -901,7 +924,7 @@ organic: boolean
 ### 6. HomeAndKitchenItem
 
 **Attaches to**: `Item.resourceAttributes`
-**Context URI**: `https://schema.beckn.io/HomeAndKitchenItem/v2.1/context.jsonld`
+**Context URI**: `https://schema.nfh.global/HomeAndKitchenItem/v2.1/context.jsonld`
 **Type**: `hkr:HomeAndKitchenItemAttributes`
 **Use when**: Furniture, appliance, kitchenware, home goods
 
@@ -923,7 +946,7 @@ installationAvailable: boolean
 ### 7. RetailOffer (base discount/availability)
 
 **Attaches to**: `Offer.offerAttributes`
-**Context URI**: `https://schema.beckn.io/RetailOffer/v2.1/context.jsonld`
+**Context URI**: `https://schema.nfh.global/RetailOffer/v2.1/context.jsonld`
 **Type**: `rco:RetailOfferAttributes`
 **Use when**: Standard retail offer with discounts or availability constraints
 
@@ -959,10 +982,11 @@ see [domain-schemas-energy-data.md](domain-schemas-energy-data.md).
 
 **Before proposing a new schema, always:**
 
-1. Check `https://schema.beckn.io` for existing schemas matching the domain
+1. Check `https://schema.nfh.global` for existing schemas matching the domain
 2. If the user has not specified a domain or schema set, ask:
    > "Which domain or schema catalogue should I check? (e.g. retail, energy/DEG, data/DDM, mobility, healthcare, or say 'none')"
-3. Only propose a new schema after confirming no existing schema at schema.beckn.io covers the required fields
+3. Check `https://schema.org` for a general-purpose type that already covers the need
+4. Only propose a new schema after confirming with the user that neither source covers the required fields
 
 When a gap is confirmed, propose using this pattern:
 
@@ -980,7 +1004,7 @@ components:
       additionalProperties: false
       x-beckn-container: <entityType>Attributes   # e.g. resourceAttributes, performanceAttributes
       x-jsonld:
-        "@context": "https://schema.beckn.io/<DomainName><EntityType>/v1.0/context.jsonld"
+        "@context": "https://schema.nfh.global/<DomainName><EntityType>/v1.0/context.jsonld"
         "@type": "<prefix>:<DomainName><EntityType>Attributes"
       properties:
         <property>:
@@ -988,12 +1012,12 @@ components:
           description: <what this captures>
 ```
 
-**Naming**: class names PascalCase, URI pattern `https://schema.beckn.io/<Name>/v<version>/context.jsonld`
+**Naming**: class names PascalCase, URI pattern `https://schema.nfh.global/<Name>/v<version>/context.jsonld`
 
 **In the payload**, the new schema only appears inside its `*Attributes` bag:
 ```json
 "resourceAttributes": {
-  "@context": "https://schema.beckn.io/<DomainName><EntityType>/v1.0/context.jsonld",
+  "@context": "https://schema.nfh.global/<DomainName><EntityType>/v1.0/context.jsonld",
   "@type": "<prefix>:<DomainName><EntityType>Attributes",
   "<property>": "<value>"
 }
@@ -1032,7 +1056,7 @@ Schemas for the Digital Energy Grid (DEG) sub-domains and the Decentralized Data
 
 ```json
 "resourceAttributes": {
-  "@context": "https://schema.beckn.io/EvChargingService/v2.0/context.jsonld",
+  "@context": "https://schema.nfh.global/EvChargingService/v2.0/context.jsonld",
   "@type": "beckn:EvChargingService",
   "evseId": "IN*ECO*01*CCS2*A",
   "connectorType": "CCS2",
@@ -1082,7 +1106,7 @@ networkOperator: { id, name }
 
 ```json
 "offerAttributes": {
-  "@context": "https://schema.beckn.io/EvChargingOffer/v2.0/context.jsonld",
+  "@context": "https://schema.nfh.global/EvChargingOffer/v2.0/context.jsonld",
   "@type": "beckn:EvChargingOffer",
   "tariffModel": "PER_KWH",
   "pricePerKwh": 12.50,
@@ -1122,7 +1146,7 @@ buyerFinderFee:
 
 ```json
 "performanceAttributes": {
-  "@context": "https://schema.beckn.io/EvChargingSession/v2.0/context.jsonld",
+  "@context": "https://schema.nfh.global/EvChargingSession/v2.0/context.jsonld",
   "@type": "beckn:EvChargingSession",
   "sessionStatus": "ACTIVE",
   "connectorStatus": "PREPARING",
@@ -1174,7 +1198,7 @@ trackingUrl: uri
 
 ```json
 "resourceAttributes": {
-  "@context": "https://schema.beckn.io/EnergyResource/v2.0/context.jsonld",
+  "@context": "https://schema.nfh.global/EnergyResource/v2.0/context.jsonld",
   "@type": "beckn:EnergyResource",
   "sourceType": "SOLAR",
   "meterId": "der://meter/100200300"
@@ -1198,7 +1222,7 @@ Uses `BecknTimeSeries` for compact representation of 24-slot schedules.
 
 ```json
 "offerAttributes": {
-  "@context": "https://schema.beckn.io/EnergyTradeOffer/v2.0/context.jsonld",
+  "@context": "https://schema.nfh.global/EnergyTradeOffer/v2.0/context.jsonld",
   "@type": "beckn:EnergyTradeOffer",
   "validityWindow": {
     "startDate": "2026-04-10T00:00:00Z",
@@ -1242,7 +1266,7 @@ Uses `BecknTimeSeries` for compact representation of 24-slot schedules.
     }
   ],
   "contractTerms": {
-    "@context": "https://schema.beckn.io/DEGContract/v2.0/context.jsonld",
+    "@context": "https://schema.nfh.global/DEGContract/v2.0/context.jsonld",
     "@type": "beckn:DEGContract",
     "policyUrl": "https://policies.deg.example/p2p-trade-v1.rego",
     "policyHash": "sha256:<hash>"
@@ -1285,8 +1309,8 @@ BecknTimeSeries:
 ```json
 {
   "@context": [
-    "https://schema.beckn.io/Participant/v2.0",
-    "https://schema.beckn.io/EnergyCustomer/v2.0"
+    "https://schema.nfh.global/Participant/v2.0",
+    "https://schema.nfh.global/EnergyCustomer/v2.0"
   ],
   "@type": ["beckn:Participant", "beckn:EnergyCustomer"],
   "id": "der://meter/100200300",
@@ -1317,7 +1341,7 @@ utilityId: string
 
 ```json
 "resourceAttributes": {
-  "@context": "https://schema.beckn.io/DemandFlexNeed/v2.0/context.jsonld",
+  "@context": "https://schema.nfh.global/DemandFlexNeed/v2.0/context.jsonld",
   "@type": "beckn:DemandFlexNeed",
   "direction": "REDUCE",
   "eventWindow": {
@@ -1353,7 +1377,7 @@ location: GeoJSON Point or Polygon
 
 ```json
 "offerAttributes": {
-  "@context": "https://schema.beckn.io/DemandFlexBuyOffer/v2.0/context.jsonld",
+  "@context": "https://schema.nfh.global/DemandFlexBuyOffer/v2.0/context.jsonld",
   "@type": "beckn:DemandFlexBuyOffer",
   "incentivePerKwh": 15.00,
   "currency": "INR",
@@ -1361,7 +1385,7 @@ location: GeoJSON Point or Polygon
   "maxCommitmentKw": 200.0,
   "baselineMethodology": "ROLLING_7_DAY_AVERAGE",
   "contractTerms": {
-    "@context": "https://schema.beckn.io/DEGContract/v2.0/context.jsonld",
+    "@context": "https://schema.nfh.global/DEGContract/v2.0/context.jsonld",
     "@type": "beckn:DEGContract",
     "policyUrl": "https://policies.deg.example/demand-flex-v1.rego",
     "policyHash": "sha256:<hash>"
@@ -1390,7 +1414,7 @@ contractTerms: DEGContract with Rego policy URL
 
 ```json
 "resourceAttributes": {
-  "@context": "https://schema.beckn.io/DatasetItem/v1/context.jsonld",
+  "@context": "https://schema.nfh.global/DatasetItem/v1/context.jsonld",
   "@type": "DatasetItem",
   "schema:identifier": "dataset-ems-hourly-2025",
   "schema:name": "EMS Hourly Energy Data 2025",
@@ -1443,7 +1467,7 @@ schema:distribution: array
 
 ```json
 "performanceAttributes": {
-  "@context": "https://schema.beckn.io/DatasetFulfillment/v1/context.jsonld",
+  "@context": "https://schema.nfh.global/DatasetFulfillment/v1/context.jsonld",
   "@type": "DatasetFulfillment",
   "fulfillment:accessMethod": "DOWNLOAD",
   "fulfillment:accessUrl": "https://data.example.com/datasets/ems-hourly-2025/download",
@@ -1574,7 +1598,7 @@ Placeholders use `<angle-bracket>` notation. Replace with scenario-specific valu
     "action": "discover",
     "bapId": "food-app.example.com",
     "bapUri": "https://food-app.example.com/beckn",
-    "networkId": "beckn:retail-network:in",
+    "networkId": "beckn.one/testnet-retail",
     "ttl": "PT30S",
     "messageId": "<uuid-new>",
     "timestamp": "<ISO8601-UTC>",
@@ -1640,7 +1664,7 @@ With JSONPath filter:
     "bapUri": "https://food-app.example.com/beckn",
     "bppId": "tomato.com",
     "bppUri": "https://tomato.com/beckn",
-    "networkId": "beckn:retail-network:in",
+    "networkId": "beckn.one/testnet-retail",
     "ttl": "PT30S",
     "messageId": "<uuid-new>",
     "timestamp": "<ISO8601-UTC>",
@@ -1686,7 +1710,7 @@ With JSONPath filter:
             "price": { "currency": "INR", "value": <base-price> },
             "isActive": true,
             "resourceAttributes": {
-              "@context": "https://schema.beckn.io/FnBItem/v2.1/context.jsonld",
+              "@context": "https://schema.nfh.global/FnBItem/v2.1/context.jsonld",
               "@type": "beckn:FnBItem",
               "classification": "VEG",
               "cuisine": "Italian",
@@ -1701,7 +1725,7 @@ With JSONPath filter:
             "resourceIds": ["<resource-id>"],
             "price": { "currency": "INR", "value": <price> },
             "offerAttributes": {
-              "@context": "https://schema.beckn.io/FnBOffer/v2.1/context.jsonld",
+              "@context": "https://schema.nfh.global/FnBOffer/v2.1/context.jsonld",
               "@type": "beckn:FnBOffer",
               "customization": {
                 "groups": [
@@ -1754,7 +1778,7 @@ With JSONPath filter:
     "bapUri": "https://food-app.example.com/beckn",
     "bppId": "tomato.com",
     "bppUri": "https://tomato.com/beckn",
-    "networkId": "beckn:retail-network:in",
+    "networkId": "beckn.one/testnet-retail",
     "ttl": "PT30S",
     "messageId": "<uuid-new>",
     "timestamp": "<ISO8601-UTC>",
@@ -1762,7 +1786,7 @@ With JSONPath filter:
   },
   "message": {
     "contract": {
-      "@context": "https://schema.beckn.io/Contract/v2.0",
+      "@context": "https://schema.nfh.global/Contract/v2.0/context.jsonld",
       "@type": "beckn:Contract",
       "participants": [
         { "id": "<session-or-user-id>" },
@@ -1775,7 +1799,7 @@ With JSONPath filter:
           "resources": [{ "id": "<resource-id>", "quantity": { "unitCode": "EA", "unitQuantity": <qty> } }],
           "offer": { "id": "<offer-id>", "resourceIds": ["<resource-id>"] },
           "commitmentAttributes": {
-            "@context": "https://schema.beckn.io/FnBItem/v2.1/context.jsonld",
+            "@context": "https://schema.nfh.global/FnBItem/v2.1/context.jsonld",
             "@type": "beckn:FnBItem",
             "lineId": "line-001",
             "offerId": "<offer-id>",
@@ -1805,7 +1829,7 @@ With JSONPath filter:
     "bapUri": "https://food-app.example.com/beckn",
     "bppId": "tomato.com",
     "bppUri": "https://tomato.com/beckn",
-    "networkId": "beckn:retail-network:in",
+    "networkId": "beckn.one/testnet-retail",
     "ttl": "PT30S",
     "messageId": "<same-as-select>",
     "timestamp": "<ISO8601-UTC>",
@@ -1813,7 +1837,7 @@ With JSONPath filter:
   },
   "message": {
     "contract": {
-      "@context": "https://schema.beckn.io/Contract/v2.0",
+      "@context": "https://schema.nfh.global/Contract/v2.0/context.jsonld",
       "@type": "beckn:Contract",
       "participants": [
         { "id": "<session-or-user-id>" },
@@ -1836,7 +1860,7 @@ With JSONPath filter:
           "resources": [{ "id": "<resource-id>", "quantity": { "unitCode": "EA", "unitQuantity": <qty> } }],
           "offer": { "id": "<offer-id>", "resourceIds": ["<resource-id>"] },
           "commitmentAttributes": {
-            "@context": "https://schema.beckn.io/FnBItem/v2.1/context.jsonld",
+            "@context": "https://schema.nfh.global/FnBItem/v2.1/context.jsonld",
             "@type": "beckn:FnBItem",
             "lineId": "line-001",
             "offerId": "<offer-id>",
@@ -1860,7 +1884,7 @@ With JSONPath filter:
           "id": "<consideration-id>",
           "status": { "descriptor": { "code": "PENDING" } },
           "considerationAttributes": {
-            "@context": "https://schema.beckn.io/FnBPriceSpecification/v2.1/context.jsonld",
+            "@context": "https://schema.nfh.global/FnBPriceSpecification/v2.1/context.jsonld",
             "@type": "beckn:FnBPriceSpecification",
             "currency": "INR",
             "value": <total>,
@@ -1876,7 +1900,7 @@ With JSONPath filter:
           "id": "<performance-id>",
           "status": { "descriptor": { "code": "PENDING" } },
           "performanceAttributes": {
-            "@context": "https://schema.beckn.io/HyperlocalDelivery/v2.0/context.jsonld",
+            "@context": "https://schema.nfh.global/HyperlocalDelivery/v2.0/context.jsonld",
             "@type": "beckn:HyperlocalDelivery",
             "pickupLocation": {
               "id": "<store-id>",
@@ -1913,7 +1937,7 @@ Same contract as `on_select`, with:
   "context": { "...action: init, same transactionId..." },
   "message": {
     "contract": {
-      "@context": "https://schema.beckn.io/Contract/v2.0",
+      "@context": "https://schema.nfh.global/Contract/v2.0/context.jsonld",
       "@type": "beckn:Contract",
       "participants": [
         { "id": "<user@example.com>", "displayName": "<Buyer Name>", "telephone": "+91<phone>", "email": "<buyer@example.com>" },
@@ -1926,7 +1950,7 @@ Same contract as `on_select`, with:
           "id": "<performance-id>",
           "status": { "descriptor": { "code": "PENDING" } },
           "performanceAttributes": {
-            "@context": "https://schema.beckn.io/HyperlocalDelivery/v2.0/context.jsonld",
+            "@context": "https://schema.nfh.global/HyperlocalDelivery/v2.0/context.jsonld",
             "@type": "beckn:HyperlocalDelivery",
             "pickupLocation": { "...same store location..." },
             "deliveryLocation": {
@@ -1980,7 +2004,7 @@ Same as `init` response body — BPP echoes back with confirmation. No contract 
     "bapUri": "https://food-app.example.com/beckn",
     "bppId": "tomato.com",
     "bppUri": "https://tomato.com/beckn",
-    "networkId": "beckn:retail-network:in",
+    "networkId": "beckn.one/testnet-retail",
     "ttl": "PT30S",
     "messageId": "<uuid-new>",
     "timestamp": "<ISO8601-UTC>",
@@ -1988,7 +2012,7 @@ Same as `init` response body — BPP echoes back with confirmation. No contract 
   },
   "message": {
     "contract": {
-      "@context": "https://schema.beckn.io/Contract/v2.0",
+      "@context": "https://schema.nfh.global/Contract/v2.0/context.jsonld",
       "@type": "beckn:Contract",
       "participants": ["<fully populated consumer + restaurant>"],
       "commitments": ["<same as on_init>"],
@@ -2025,7 +2049,7 @@ Same as `init` response body — BPP echoes back with confirmation. No contract 
     "bapUri": "https://food-app.example.com/beckn",
     "bppId": "tomato.com",
     "bppUri": "https://tomato.com/beckn",
-    "networkId": "beckn:retail-network:in",
+    "networkId": "beckn.one/testnet-retail",
     "ttl": "PT30S",
     "messageId": "<same-as-confirm>",
     "timestamp": "<ISO8601-UTC>",
@@ -2033,7 +2057,7 @@ Same as `init` response body — BPP echoes back with confirmation. No contract 
   },
   "message": {
     "contract": {
-      "@context": "https://schema.beckn.io/Contract/v2.0",
+      "@context": "https://schema.nfh.global/Contract/v2.0/context.jsonld",
       "@type": "beckn:Contract",
       "id": "<contract-uuid>",
       "displayId": "<ORD-20260310-001>",
@@ -2045,7 +2069,7 @@ Same as `init` response body — BPP echoes back with confirmation. No contract 
           "id": "<consideration-id>",
           "status": { "descriptor": { "code": "PENDING" } },
           "considerationAttributes": {
-            "@context": "https://schema.beckn.io/FnBPriceSpecification/v2.1/context.jsonld",
+            "@context": "https://schema.nfh.global/FnBPriceSpecification/v2.1/context.jsonld",
             "@type": "beckn:FnBPriceSpecification",
             "currency": "INR",
             "value": <total>,
@@ -2061,7 +2085,7 @@ Same as `init` response body — BPP echoes back with confirmation. No contract 
           "id": "<performance-id>",
           "status": { "descriptor": { "code": "ACTIVE", "name": "Order Received", "shortDesc": "Being prepared" } },
           "performanceAttributes": {
-            "@context": "https://schema.beckn.io/HyperlocalDelivery/v2.0/context.jsonld",
+            "@context": "https://schema.nfh.global/HyperlocalDelivery/v2.0/context.jsonld",
             "@type": "beckn:HyperlocalDelivery",
             "pickupLocation": { "...store location..." },
             "deliveryLocation": { "...buyer address..." },
@@ -2091,7 +2115,7 @@ Same as `init` response body — BPP echoes back with confirmation. No contract 
   "context": { "...action: on_status, same transactionId..." },
   "message": {
     "contract": {
-      "@context": "https://schema.beckn.io/Contract/v2.0",
+      "@context": "https://schema.nfh.global/Contract/v2.0/context.jsonld",
       "@type": "beckn:Contract",
       "id": "<contract-uuid>",
       "status": { "descriptor": { "code": "ACTIVE" } },
@@ -2123,7 +2147,7 @@ Same as `init` response body — BPP echoes back with confirmation. No contract 
   "context": { "...action: on_cancel, try: true..." },
   "message": {
     "contract": {
-      "@context": "https://schema.beckn.io/Contract/v2.0",
+      "@context": "https://schema.nfh.global/Contract/v2.0/context.jsonld",
       "@type": "beckn:Contract",
       "id": "<contract-uuid>",
       "status": { "descriptor": { "code": "ACTIVE" } }
@@ -2142,7 +2166,7 @@ Same as `init` response body — BPP echoes back with confirmation. No contract 
   "context": { "...action: on_cancel..." },
   "message": {
     "contract": {
-      "@context": "https://schema.beckn.io/Contract/v2.0",
+      "@context": "https://schema.nfh.global/Contract/v2.0/context.jsonld",
       "@type": "beckn:Contract",
       "id": "<contract-uuid>",
       "status": { "descriptor": { "code": "CANCELLED" } }
@@ -2223,9 +2247,10 @@ Before outputting any payload set, verify:
 - [ ] `resourceAttributes` on Resource (not `itemAttributes`)
 - [ ] `performance[]` in Contract (not `fulfillments[]`)
 - [ ] `performanceAttributes` on Performance (not `fulfillmentAttributes`)
-- [ ] Contract has `"@context": "https://schema.beckn.io/Contract/v2.0"` at top level
+- [ ] Contract has `"@context": "https://schema.nfh.global/Contract/v2.0/context.jsonld"` at top level
 - [ ] Contract `status.code: "ACTIVE"` on on_confirm (not "CONFIRMED")
 - [ ] Participants use array `@context`/`@type`, direct props (no `participantAttributes` wrapper)
+- [ ] `intent.filters.expression` (discover) is RFC 9535-compliant JSONPath: only `==`, `!=`, `<`, `<=`, `>`, `>=`, `&&`, `||`, `!` — no non-standard operators (e.g. `~`, `contains`, `=~`) or legacy JSONPath-Plus-only syntax
 - [ ] `considerationAttributes` uses `components[]` (not `breakup[]`), has `value` (not `totalAmount`)
 - [ ] Every `*Attributes` block has `@context` and `@type`
 
@@ -2649,7 +2674,7 @@ Proposed new schema `HealthcareResource`:
 HealthcareResourceAttributes:
   x-beckn-container: resourceAttributes
   x-jsonld:
-    "@context": "https://schema.beckn.io/HealthcareResource/v1.0/context.jsonld"
+    "@context": "https://schema.nfh.global/HealthcareResource/v1.0/context.jsonld"
     "@type": "hcr:HealthcareResourceAttributes"
   properties:
     serviceType: string            # DENTAL_CLEANING, GP_CONSULTATION, PHYSIOTHERAPY …
