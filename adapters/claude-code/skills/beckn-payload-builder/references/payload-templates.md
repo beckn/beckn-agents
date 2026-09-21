@@ -670,5 +670,6 @@ Before outputting any payload set, verify:
 - [ ] Contract has `"@context": "https://schema.nfh.global/Contract/v2.0/context.jsonld"` at top level
 - [ ] Contract `status.code: "ACTIVE"` on on_confirm (not "CONFIRMED")
 - [ ] Participants use array `@context`/`@type`, direct props (no `participantAttributes` wrapper)
+- [ ] `intent.filters.expression` (discover) is RFC 9535-compliant JSONPath: only `==`, `!=`, `<`, `<=`, `>`, `>=`, `&&`, `||`, `!` — no non-standard operators (e.g. `~`, `contains`, `=~`) or legacy JSONPath-Plus-only syntax
 - [ ] `considerationAttributes` uses `components[]` (not `breakup[]`), has `value` (not `totalAmount`)
 - [ ] Every `*Attributes` block has `@context` and `@type`

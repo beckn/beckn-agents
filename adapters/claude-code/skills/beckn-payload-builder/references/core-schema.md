@@ -362,6 +362,8 @@ Intent:
   filters:                     # JSONPath RFC 9535
     type: "jsonpath"
     expression: string         # e.g. "$[?(@.resourceAttributes.food.classification == 'VEG')]"
+                                # RFC 9535 comparisons only: ==, !=, <, <=, >, >=, &&, ||, !
+                                # no non-standard operators (~, contains, =~) or JSONPath-Plus-only syntax
   spatial:
     - op: S_DWITHIN
       targets: string          # JSONPath to geo field
