@@ -8,8 +8,8 @@
 
 Steps: `discover` → `on_discover`
 
-- `discover`: BAP sends intent with textSearch and/or spatial filters
-- `on_discover`: BPP/CDS returns matching catalogs with resources and offers
+- `discover`: CN sends intent with textSearch and/or spatial filters
+- `on_discover`: PN/CDS returns matching catalogs with resources and offers
 
 ---
 
@@ -18,24 +18,24 @@ Steps: `discover` → `on_discover`
 **Scenario signals**: full purchase journey — buyer finds item, places order, receives it
 
 Steps:
-1. `discover` — BAP broadcasts intent (textSearch, geo filter)
-2. `on_discover` — BPP returns catalog with resources + offers
-3. `select` — BAP creates DRAFT contract with chosen resource+offer and quantity
-4. `on_select` — BPP returns contract with priceSpecification calculated
-5. `init` — BAP adds buyer details (participant), delivery address (performance), payment method (consideration)
-6. `on_init` — BPP confirms payment terms and delivery window
-7. `confirm` — BAP finalises contract
-8. `on_confirm` — BPP returns CONFIRMED contract with contract ID
+1. `discover` — CN broadcasts intent (textSearch, geo filter)
+2. `on_discover` — PN returns catalog with resources + offers
+3. `select` — CN creates DRAFT contract with chosen resource+offer and quantity
+4. `on_select` — PN returns contract with priceSpecification calculated
+5. `init` — CN adds buyer details (participant), delivery address (performance), payment method (consideration)
+6. `on_init` — PN confirms payment terms and delivery window
+7. `confirm` — CN finalises contract
+8. `on_confirm` — PN returns CONFIRMED contract with contract ID
 
 ---
 
 ## Flow 3: Order with tracking
 
 Add after `on_confirm`:
-9. `status` — BAP polls current state
-10. `on_status` — BPP returns current contract status (ACTIVE, performance status)
-11. `track` — BAP requests real-time tracking handle
-12. `on_track` — BPP returns tracking URL or WebSocket endpoint
+9. `status` — CN polls current state
+10. `on_status` — PN returns current contract status (ACTIVE, performance status)
+11. `track` — CN requests real-time tracking handle
+12. `on_track` — PN returns tracking URL or WebSocket endpoint
 
 ---
 
@@ -43,11 +43,11 @@ Add after `on_confirm`:
 
 After `on_confirm`, buyer wants to cancel:
 - **Preview cancellation terms first** (recommended):
-  - `cancel` with `context.try: true` — BAP asks for policy
-  - `on_cancel` with `context.try: true` — BPP returns fees, refund timeline
+  - `cancel` with `context.try: true` — CN asks for policy
+  - `on_cancel` with `context.try: true` — PN returns fees, refund timeline
 - **Commit cancellation**:
-  - `cancel` with `context.try: false` — BAP confirms
-  - `on_cancel` with `context.try: false` — BPP returns CANCELLED contract
+  - `cancel` with `context.try: false` — CN confirms
+  - `on_cancel` with `context.try: false` — PN returns CANCELLED contract
 
 ---
 
@@ -66,10 +66,10 @@ Buyer wants to change item quantity, address, or timing:
 ## Flow 6: Post-fulfillment
 
 After contract is COMPLETE:
-- `rate` — BAP submits rating for provider, item, delivery agent
-- `on_rate` — BPP acknowledges
-- `support` — BAP requests support channels or opens ticket
-- `on_support` — BPP returns support details
+- `rate` — CN submits rating for provider, item, delivery agent
+- `on_rate` — PN acknowledges
+- `support` — CN requests support channels or opens ticket
+- `on_support` — PN returns support details
 
 ---
 
@@ -85,11 +85,11 @@ Steps 1–8 (same as Flow 2) PLUS:
 
 ---
 
-## Flow 8: Catalog publishing (BPP side)
+## Flow 8: Catalog publishing (PN side)
 
 For BPPs publishing to a Catalog Discovery Service (CDS):
 
-1. `catalog/publish` — BPP pushes catalog(s) to CDS
+1. `catalog/publish` — PN pushes catalog(s) to CDS
 2. `catalog/on_publish` — CDS returns per-catalog processing results (ACCEPTED/REJECTED/PARTIAL)
 
 ---
@@ -99,22 +99,22 @@ For BPPs publishing to a Catalog Discovery Service (CDS):
 **Scenario signals**: EV charger, charging station, connector, kWh, session, EVSE
 
 Steps:
-1. `discover` — BAP broadcasts intent with geo filter near user's location
-2. `on_discover` — BPP returns catalog with `EvChargingService` items + `EvChargingOffer` offers
-3. `select` — BAP picks connector + tariff; creates DRAFT contract
-4. `on_select` — BPP returns contract with price estimate (kWh rate + idle fee)
-5. `init` — BAP adds EV driver details (EnergyCustomer participant), desired session window
-6. `on_init` — BPP confirms reservation slot and payment method
-7. `confirm` — BAP finalises contract; reservation ID issued
-8. `on_confirm` — BPP returns ACTIVE contract with `EvChargingSession` in performanceAttributes
+1. `discover` — CN broadcasts intent with geo filter near user's location
+2. `on_discover` — PN returns catalog with `EvChargingService` items + `EvChargingOffer` offers
+3. `select` — CN picks connector + tariff; creates DRAFT contract
+4. `on_select` — PN returns contract with price estimate (kWh rate + idle fee)
+5. `init` — CN adds EV driver details (EnergyCustomer participant), desired session window
+6. `on_init` — PN confirms reservation slot and payment method
+7. `confirm` — CN finalises contract; reservation ID issued
+8. `on_confirm` — PN returns ACTIVE contract with `EvChargingSession` in performanceAttributes
 
 **During charging** (repeat as needed):
-9. `status` — BAP polls session state
-10. `on_status` — BPP returns updated `EvChargingSession` (meteredEnergyKwh, power, SoC)
-11. `update` (try=true) — BAP requests stop
-12. `on_update` — BPP returns final session summary
-13. `update` — BAP commits stop
-14. `on_update` — BPP finalises session with total cost
+9. `status` — CN polls session state
+10. `on_status` — PN returns updated `EvChargingSession` (meteredEnergyKwh, power, SoC)
+11. `update` (try=true) — CN requests stop
+12. `on_update` — PN returns final session summary
+13. `update` — CN commits stop
+14. `on_update` — PN finalises session with total cost
 
 **Schema map**:
 - `resourceAttributes`: EvChargingService
@@ -129,18 +129,18 @@ Steps:
 **Scenario signals**: P2P energy, prosumer, peer trading, solar export, day-ahead market
 
 Steps:
-1. `discover` — BAP (buyer DISCOM / aggregator) searches for energy sellers
-2. `on_discover` — BPP (seller/prosumer) returns catalog with `EnergyResource` items + `EnergyTradeOffer` offers (BecknTimeSeries with 24 hourly slots)
-3. `select` — BAP picks offer slots and submits `bidTimeseries` (REQUESTED_QTY per slot)
-4. `on_select` — BPP returns matched contract with consideration (value = sum of selected slots × price)
-5. `init` — BAP adds EnergyCustomer participant (buyer's meterId), settlement preference
-6. `on_init` — BPP confirms matched energy schedule and total INR value
-7. `confirm` — BAP finalises; DEGContract (Rego policy) governs execution
-8. `on_confirm` — BPP returns ACTIVE contract with matched energy schedule
+1. `discover` — CN (buyer DISCOM / aggregator) searches for energy sellers
+2. `on_discover` — PN (seller/prosumer) returns catalog with `EnergyResource` items + `EnergyTradeOffer` offers (BecknTimeSeries with 24 hourly slots)
+3. `select` — CN picks offer slots and submits `bidTimeseries` (REQUESTED_QTY per slot)
+4. `on_select` — PN returns matched contract with consideration (value = sum of selected slots × price)
+5. `init` — CN adds EnergyCustomer participant (buyer's meterId), settlement preference
+6. `on_init` — PN confirms matched energy schedule and total INR value
+7. `confirm` — CN finalises; DEGContract (Rego policy) governs execution
+8. `on_confirm` — PN returns ACTIVE contract with matched energy schedule
 
 **During delivery window** (repeat):
-9. `status` — BAP checks energy delivery state
-10. `on_status` — BPP returns telemetry (actual vs committed kWh per interval)
+9. `status` — CN checks energy delivery state
+10. `on_status` — PN returns telemetry (actual vs committed kWh per interval)
 
 **Schema map**:
 - `resourceAttributes`: EnergyResource (sourceType, meterId)
@@ -155,18 +155,18 @@ Steps:
 **Scenario signals**: demand response, DR event, curtailment, load shifting, utility flex
 
 Steps:
-1. `discover` — Aggregator/BAP searches for demand flex opportunities from utilities
-2. `on_discover` — Utility/BPP returns catalog with `DemandFlexNeed` items (direction, eventWindow, maxCapacityKw)
-3. `select` — BAP commits capacity (commitmentAttributes with capacityKw, participatingDERs)
-4. `on_select` — BPP returns contract with incentive amount (incentivePerKwh × committed kWh)
-5. `init` — BAP adds aggregator participant, participating DER IDs
-6. `on_init` — BPP confirms event commitment and payment terms
-7. `confirm` — BAP finalises participation contract
-8. `on_confirm` — BPP returns ACTIVE contract for the flex event
+1. `discover` — Aggregator/CN searches for demand flex opportunities from utilities
+2. `on_discover` — Utility/PN returns catalog with `DemandFlexNeed` items (direction, eventWindow, maxCapacityKw)
+3. `select` — CN commits capacity (commitmentAttributes with capacityKw, participatingDERs)
+4. `on_select` — PN returns contract with incentive amount (incentivePerKwh × committed kWh)
+5. `init` — CN adds aggregator participant, participating DER IDs
+6. `on_init` — PN confirms event commitment and payment terms
+7. `confirm` — CN finalises participation contract
+8. `on_confirm` — PN returns ACTIVE contract for the flex event
 
 **During event**:
-9. `status` — BAP reports actual curtailment achieved
-10. `on_status` — BPP acknowledges and records compliance
+9. `status` — CN reports actual curtailment achieved
+10. `on_status` — PN acknowledges and records compliance
 
 **Schema map**:
 - `resourceAttributes`: DemandFlexNeed (direction, eventWindow, maxCapacityKw, location)
@@ -180,20 +180,20 @@ Steps:
 **Scenario signals**: dataset, data purchase, API access, historical data, analytics data
 
 Steps:
-1. `discover` — BAP (data buyer) searches for datasets by keyword, topic, temporal coverage
-2. `on_discover` — BPP (data provider) returns catalog with `DatasetItem` items + pricing offers
-3. `select` — BAP picks dataset and license type; creates DRAFT contract
-4. `on_select` — BPP returns contract with price (flat, per-record, or subscription)
-5. `init` — BAP adds buyer details (organisation, billing, intended use)
-6. `on_init` — BPP confirms license terms, delivery format, access window
-7. `confirm` — BAP finalises; attaches payment proof in entitlements
-8. `on_confirm` — BPP returns ACTIVE contract with `DatasetFulfillment` (accessUrl, maxDownloads)
+1. `discover` — CN (data buyer) searches for datasets by keyword, topic, temporal coverage
+2. `on_discover` — PN (data provider) returns catalog with `DatasetItem` items + pricing offers
+3. `select` — CN picks dataset and license type; creates DRAFT contract
+4. `on_select` — PN returns contract with price (flat, per-record, or subscription)
+5. `init` — CN adds buyer details (organisation, billing, intended use)
+6. `on_init` — PN confirms license terms, delivery format, access window
+7. `confirm` — CN finalises; attaches payment proof in entitlements
+8. `on_confirm` — PN returns ACTIVE contract with `DatasetFulfillment` (accessUrl, maxDownloads)
 
 **Post-delivery** (optional):
-9. `status` — BAP checks download availability or API quota
-10. `on_status` — BPP returns usage (downloadsUsed, remaining quota)
-11. `rate` — BAP rates dataset quality
-12. `on_rate` — BPP acknowledges rating
+9. `status` — CN checks download availability or API quota
+10. `on_status` — PN returns usage (downloadsUsed, remaining quota)
+11. `rate` — CN rates dataset quality
+12. `on_rate` — PN acknowledges rating
 
 **Schema map**:
 - `resourceAttributes`: DatasetItem (schema:identifier, temporalCoverage, variableMeasured, qualityFlags)
@@ -209,14 +209,14 @@ Steps:
 
 Same lifecycle shape as Flow 2/3, no mobility-specific step sequence:
 
-1. `discover` — BAP broadcasts intent (origin/destination geo, mode, time window)
-2. `on_discover` — BPP returns catalog of vehicle/route/fare options
-3. `select` — BAP picks an option; creates DRAFT contract
-4. `on_select` — BPP returns contract with fare estimate
-5. `init` — BAP adds passenger details, pickup/drop specifics, payment method
-6. `on_init` — BPP confirms fare and any reservation terms
-7. `confirm` — BAP finalises contract
-8. `on_confirm` — BPP returns ACTIVE contract (driver/vehicle assignment where applicable)
+1. `discover` — CN broadcasts intent (origin/destination geo, mode, time window)
+2. `on_discover` — PN returns catalog of vehicle/route/fare options
+3. `select` — CN picks an option; creates DRAFT contract
+4. `on_select` — PN returns contract with fare estimate
+5. `init` — CN adds passenger details, pickup/drop specifics, payment method
+6. `on_init` — PN confirms fare and any reservation terms
+7. `confirm` — CN finalises contract
+8. `on_confirm` — PN returns ACTIVE contract (driver/vehicle assignment where applicable)
 9. `track` / `on_track` — live trip position during the ride
 10. `status` / `on_status` — trip state polling
 11. `cancel` / `on_cancel` — per Flow 4
@@ -256,7 +256,7 @@ PENDING → ACTIVE → COMPLETED | FAILED
 
 ## Context rules by action
 
-| Action | bppId/bppUri required? | transactionId | messageId |
+| Action | receiverId/bppUri required? | transactionId | messageId |
 |---|---|---|---|
 | `discover` | No (broadcast) | New UUID | New UUID |
 | `on_discover` | Yes | Same as discover | New UUID |
