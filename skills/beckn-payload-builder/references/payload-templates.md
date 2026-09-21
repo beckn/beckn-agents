@@ -7,7 +7,7 @@ Placeholders use `<angle-bracket>` notation. Replace with scenario-specific valu
 
 ## discover
 
-**Caller**: CN → CDS/PN  
+**Caller**: CN → DS/PN  
 **Purpose**: Broadcast intent to find catalogs  
 **Note**: `receiverId`/`bppUri` are absent (broadcast)
 
@@ -72,7 +72,7 @@ With JSONPath filter:
 
 ## on_discover
 
-**Caller**: PN/CDS → CN  
+**Caller**: PN/DS → CN  
 **Purpose**: Return matching catalogs with items and offers
 
 ```json

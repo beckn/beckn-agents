@@ -31,8 +31,8 @@
 ### Discovery
 | Action | Caller | Receiver | Message |
 |---|---|---|---|
-| `discover` | CN | CDS/PN | `intent` (textSearch, filters, spatial) |
-| `on_discover` | PN/CDS | CN | `catalogs[]` |
+| `discover` | CN | DS/PN | `intent` (textSearch, filters, spatial) |
+| `on_discover` | PN/DS | CN | `catalogs[]` |
 
 ### Transaction
 | Action | Caller | Receiver | Message |
@@ -61,8 +61,8 @@
 ### Catalog management
 | Action | Notes |
 |---|---|
-| `catalog/publish` | PN pushes catalog(s) to CDS |
-| `catalog/on_publish` | CDS returns ACCEPTED/REJECTED per catalog |
+| `catalog/publish` | PN pushes catalog(s) to DS |
+| `catalog/on_publish` | DS returns ACCEPTED/REJECTED per catalog |
 
 ---
 

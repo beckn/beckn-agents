@@ -38,7 +38,7 @@ what is the Offer, what is the Performance, what is the Consideration.
 ### 2. Transaction flow
 A numbered list of API steps:
 ```
-1. discover (CN → CDS/PN) — broadcast pizza search intent
+1. discover (CN → DS/PN) — broadcast pizza search intent
 2. on_discover (PN → CN) — return Sarpino's catalog with pizza resources + offers
 3. select (CN → PN) — choose Margherita + SIZE=LARGE + EXTRA_CHEESE
 4. on_select (PN → CN) — return contract with INR 450 + INR 50 delivery

@@ -9,7 +9,7 @@
 Steps: `discover` → `on_discover`
 
 - `discover`: CN sends intent with textSearch and/or spatial filters
-- `on_discover`: PN/CDS returns matching catalogs with resources and offers
+- `on_discover`: PN/DS returns matching catalogs with resources and offers
 
 ---
 
@@ -87,10 +87,10 @@ Steps 1–8 (same as Flow 2) PLUS:
 
 ## Flow 8: Catalog publishing (PN side)
 
-For BPPs publishing to a Catalog Discovery Service (CDS):
+For PNs publishing to a Discovery Service (DS):
 
-1. `catalog/publish` — PN pushes catalog(s) to CDS
-2. `catalog/on_publish` — CDS returns per-catalog processing results (ACCEPTED/REJECTED/PARTIAL)
+1. `catalog/publish` — PN pushes catalog(s) to DS
+2. `catalog/on_publish` — DS returns per-catalog processing results (ACCEPTED/REJECTED/PARTIAL)
 
 ---
 
