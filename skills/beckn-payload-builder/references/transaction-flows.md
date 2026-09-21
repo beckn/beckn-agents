@@ -92,6 +92,9 @@ For PNs publishing to a Discovery Service (DS):
 1. `catalog/publish` — PN pushes catalog(s) to DS
 2. `catalog/on_publish` — DS returns per-catalog processing results (ACCEPTED/REJECTED/PARTIAL)
 
+See [github.com/beckn/beckn-discovr](https://github.com/beckn/beckn-discovr) for a reference
+implementation of a Discovery Service — an open-source reference only, not a normative requirement.
+
 ---
 
 ## Flow 9: EV Charging (reservation + session)
