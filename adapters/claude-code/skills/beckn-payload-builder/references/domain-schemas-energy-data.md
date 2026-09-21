@@ -28,7 +28,7 @@ Schemas for the Digital Energy Grid (DEG) sub-domains and the Decentralized Data
 
 ```json
 "resourceAttributes": {
-  "@context": "https://schema.beckn.io/EvChargingService/v2.0/context.jsonld",
+  "@context": "https://schema.nfh.global/EvChargingService/v2.0/context.jsonld",
   "@type": "beckn:EvChargingService",
   "evseId": "IN*ECO*01*CCS2*A",
   "connectorType": "CCS2",
@@ -78,7 +78,7 @@ networkOperator: { id, name }
 
 ```json
 "offerAttributes": {
-  "@context": "https://schema.beckn.io/EvChargingOffer/v2.0/context.jsonld",
+  "@context": "https://schema.nfh.global/EvChargingOffer/v2.0/context.jsonld",
   "@type": "beckn:EvChargingOffer",
   "tariffModel": "PER_KWH",
   "pricePerKwh": 12.50,
@@ -118,7 +118,7 @@ buyerFinderFee:
 
 ```json
 "performanceAttributes": {
-  "@context": "https://schema.beckn.io/EvChargingSession/v2.0/context.jsonld",
+  "@context": "https://schema.nfh.global/EvChargingSession/v2.0/context.jsonld",
   "@type": "beckn:EvChargingSession",
   "sessionStatus": "ACTIVE",
   "connectorStatus": "PREPARING",
@@ -170,7 +170,7 @@ trackingUrl: uri
 
 ```json
 "resourceAttributes": {
-  "@context": "https://schema.beckn.io/EnergyResource/v2.0/context.jsonld",
+  "@context": "https://schema.nfh.global/EnergyResource/v2.0/context.jsonld",
   "@type": "beckn:EnergyResource",
   "sourceType": "SOLAR",
   "meterId": "der://meter/100200300"
@@ -194,7 +194,7 @@ Uses `BecknTimeSeries` for compact representation of 24-slot schedules.
 
 ```json
 "offerAttributes": {
-  "@context": "https://schema.beckn.io/EnergyTradeOffer/v2.0/context.jsonld",
+  "@context": "https://schema.nfh.global/EnergyTradeOffer/v2.0/context.jsonld",
   "@type": "beckn:EnergyTradeOffer",
   "validityWindow": {
     "startDate": "2026-04-10T00:00:00Z",
@@ -238,7 +238,7 @@ Uses `BecknTimeSeries` for compact representation of 24-slot schedules.
     }
   ],
   "contractTerms": {
-    "@context": "https://schema.beckn.io/DEGContract/v2.0/context.jsonld",
+    "@context": "https://schema.nfh.global/DEGContract/v2.0/context.jsonld",
     "@type": "beckn:DEGContract",
     "policyUrl": "https://policies.deg.example/p2p-trade-v1.rego",
     "policyHash": "sha256:<hash>"
@@ -281,8 +281,8 @@ BecknTimeSeries:
 ```json
 {
   "@context": [
-    "https://schema.beckn.io/Participant/v2.0",
-    "https://schema.beckn.io/EnergyCustomer/v2.0"
+    "https://schema.nfh.global/Participant/v2.0",
+    "https://schema.nfh.global/EnergyCustomer/v2.0"
   ],
   "@type": ["beckn:Participant", "beckn:EnergyCustomer"],
   "id": "der://meter/100200300",
@@ -313,7 +313,7 @@ utilityId: string
 
 ```json
 "resourceAttributes": {
-  "@context": "https://schema.beckn.io/DemandFlexNeed/v2.0/context.jsonld",
+  "@context": "https://schema.nfh.global/DemandFlexNeed/v2.0/context.jsonld",
   "@type": "beckn:DemandFlexNeed",
   "direction": "REDUCE",
   "eventWindow": {
@@ -349,7 +349,7 @@ location: GeoJSON Point or Polygon
 
 ```json
 "offerAttributes": {
-  "@context": "https://schema.beckn.io/DemandFlexBuyOffer/v2.0/context.jsonld",
+  "@context": "https://schema.nfh.global/DemandFlexBuyOffer/v2.0/context.jsonld",
   "@type": "beckn:DemandFlexBuyOffer",
   "incentivePerKwh": 15.00,
   "currency": "INR",
@@ -357,7 +357,7 @@ location: GeoJSON Point or Polygon
   "maxCommitmentKw": 200.0,
   "baselineMethodology": "ROLLING_7_DAY_AVERAGE",
   "contractTerms": {
-    "@context": "https://schema.beckn.io/DEGContract/v2.0/context.jsonld",
+    "@context": "https://schema.nfh.global/DEGContract/v2.0/context.jsonld",
     "@type": "beckn:DEGContract",
     "policyUrl": "https://policies.deg.example/demand-flex-v1.rego",
     "policyHash": "sha256:<hash>"
@@ -386,7 +386,7 @@ contractTerms: DEGContract with Rego policy URL
 
 ```json
 "resourceAttributes": {
-  "@context": "https://schema.beckn.io/DatasetItem/v1/context.jsonld",
+  "@context": "https://schema.nfh.global/DatasetItem/v1/context.jsonld",
   "@type": "DatasetItem",
   "schema:identifier": "dataset-ems-hourly-2025",
   "schema:name": "EMS Hourly Energy Data 2025",
@@ -439,7 +439,7 @@ schema:distribution: array
 
 ```json
 "performanceAttributes": {
-  "@context": "https://schema.beckn.io/DatasetFulfillment/v1/context.jsonld",
+  "@context": "https://schema.nfh.global/DatasetFulfillment/v1/context.jsonld",
   "@type": "DatasetFulfillment",
   "fulfillment:accessMethod": "DOWNLOAD",
   "fulfillment:accessUrl": "https://data.example.com/datasets/ems-hourly-2025/download",

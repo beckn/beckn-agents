@@ -117,7 +117,7 @@ Proposed new schema `HealthcareResource`:
 HealthcareResourceAttributes:
   x-beckn-container: resourceAttributes
   x-jsonld:
-    "@context": "https://schema.beckn.io/HealthcareResource/v1.0/context.jsonld"
+    "@context": "https://schema.nfh.global/HealthcareResource/v1.0/context.jsonld"
     "@type": "hcr:HealthcareResourceAttributes"
   properties:
     serviceType: string            # DENTAL_CLEANING, GP_CONSULTATION, PHYSIOTHERAPY …

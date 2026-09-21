@@ -67,13 +67,13 @@ None of the above?
 ### 1. FnBItem (Food & Beverage Item)
 
 **Attaches to**: `Item.resourceAttributes` and `Commitment.commitmentAttributes`
-**Context URI**: `https://schema.nfh.global/`
+**Context URI**: `https://schema.nfh.global/FnBItem/v2.1/context.jsonld`
 **Type**: `beckn:FnBItem`
 **Use when**: Resource is a prepared food or beverage item
 
 ```json
 "resourceAttributes": {
-  "@context": "https://schema.nfh.global/",
+  "@context": "https://schema.nfh.global/FnBItem/v2.1/context.jsonld",
   "@type": "beckn:FnBItem",
   "classification": "VEG",
   "cuisine": "Italian",
@@ -91,7 +91,7 @@ None of the above?
 **In commitmentAttributes** (also includes line-item fields):
 ```json
 "commitmentAttributes": {
-  "@context": "https://schema.nfh.global/",
+  "@context": "https://schema.nfh.global/FnBItem/v2.1/context.jsonld",
   "@type": "beckn:FnBItem",
   "lineId": "line-001",
   "offerId": "offer-margherita-regular",
@@ -127,13 +127,13 @@ preparation:
 ### 2. FnBOffer (Food & Beverage Offer)
 
 **Attaches to**: `Offer.offerAttributes`
-**Context URI**: `https://schema.nfh.global/`
+**Context URI**: `https://schema.nfh.global/FnBOffer/v2.1/context.jsonld`
 **Type**: `beckn:FnBOffer`
 **Use when**: Food offer has customization options (size, toppings, sauces, extras)
 
 ```json
 "offerAttributes": {
-  "@context": "https://schema.nfh.global/",
+  "@context": "https://schema.nfh.global/FnBOffer/v2.1/context.jsonld",
   "@type": "beckn:FnBOffer",
   "customization": {
     "groups": [
@@ -185,13 +185,13 @@ options:
 ### 3. FnBPriceSpecification (Food & Beverage Consideration)
 
 **Attaches to**: `Consideration.considerationAttributes`
-**Context URI**: `https://schema.nfh.global/`
+**Context URI**: `https://schema.nfh.global/FnBPriceSpecification/v2.1/context.jsonld`
 **Type**: `beckn:FnBPriceSpecification`
 **Use when**: F&B monetary payment with price breakdown
 
 ```json
 "considerationAttributes": {
-  "@context": "https://schema.nfh.global/",
+  "@context": "https://schema.nfh.global/FnBPriceSpecification/v2.1/context.jsonld",
   "@type": "beckn:FnBPriceSpecification",
   "currency": "INR",
   "value": 929,
@@ -210,16 +210,16 @@ options:
 ### 4. HyperlocalDelivery (Fulfillment)
 
 **Attaches to**: `Fulfillment.performanceAttributes`
-**Context URI**: `https://schema.nfh.global/`
+**Context URI**: `https://schema.nfh.global/HyperlocalDelivery/v2.1/context.jsonld`
 **Type**: `beckn:HyperlocalDelivery`
 **Use when**: Physical delivery of food/retail from store to buyer
 
 ```json
 "performanceAttributes": {
-  "@context": "https://schema.nfh.global/",
+  "@context": "https://schema.nfh.global/HyperlocalDelivery/v2.1/context.jsonld",
   "@type": "beckn:HyperlocalDelivery",
   "pickupLocation": {
-    "@context": "https://schema.nfh.global/",
+    "@context": "https://schema.nfh.global/Location/v2.0/context.jsonld",
     "@type": "beckn:Location",
     "id": "store-id",
     "geo": { "type": "Point", "coordinates": [77.5946, 12.9716] },
@@ -232,7 +232,7 @@ options:
     }
   },
   "deliveryLocation": {
-    "@context": "https://schema.nfh.global/",
+    "@context": "https://schema.nfh.global/Location/v2.0/context.jsonld",
     "@type": "beckn:Location",
     "geo": { "type": "Point", "coordinates": [77.5946, 12.9716] },
     "address": {
@@ -245,7 +245,7 @@ options:
   },
   "itemsShipped": [
     {
-      "@context": ["https://schema.nfh.global/Resource/v2.0", "https://schema.nfh.global/FoodAndBeverageItem/v2.0"],
+      "@context": ["https://schema.nfh.global/Resource/v2.0/context.jsonld", "https://schema.nfh.global/FnBItem/v2.1/context.jsonld"],
       "@type": ["beckn:Resource", "beckn:FnBItem"],
       "itemId": "item-veg-margherita",
       "offerId": "offer-margherita-regular",
@@ -346,7 +346,8 @@ see [domain-schemas-energy-data.md](domain-schemas-energy-data.md).
 1. Check `https://schema.nfh.global` for existing schemas matching the domain
 2. If the user has not specified a domain or schema set, ask:
    > "Which domain or schema catalogue should I check? (e.g. retail, energy/DEG, data/DDM, mobility, healthcare, or say 'none')"
-3. Only propose a new schema after confirming no existing schema at schema.nfh.global covers the required fields
+3. Check `https://schema.org` for a general-purpose type that already covers the need
+4. Only propose a new schema after confirming with the user that neither source covers the required fields
 
 When a gap is confirmed, propose using this pattern:
 
