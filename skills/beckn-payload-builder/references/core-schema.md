@@ -31,18 +31,18 @@
 ### Discovery
 | Action | Caller | Receiver | Message |
 |---|---|---|---|
-| `discover` | BAP | CDS/BPP | `intent` (textSearch, filters, spatial) |
-| `on_discover` | BPP/CDS | BAP | `catalogs[]` |
+| `discover` | CN | DS/PN | `intent` (textSearch, filters, spatial) |
+| `on_discover` | PN/DS | CN | `catalogs[]` |
 
 ### Transaction
 | Action | Caller | Receiver | Message |
 |---|---|---|---|
-| `select` | BAP | BPP | `contract` (DRAFT, with commitments) |
-| `on_select` | BPP | BAP | `contract` (with consideration and performance) |
-| `init` | BAP | BPP | `contract` (adds full buyer participant, delivery location) |
-| `on_init` | BPP | BAP | `contract` (confirms SLA, payment terms) |
-| `confirm` | BAP | BPP | `contract` (echo of on_init, with entitlements/payment proof) |
-| `on_confirm` | BPP | BAP | `contract` (status: ACTIVE, id assigned) |
+| `select` | CN | PN | `contract` (DRAFT, with commitments) |
+| `on_select` | PN | CN | `contract` (with consideration and performance) |
+| `init` | CN | PN | `contract` (adds full buyer participant, delivery location) |
+| `on_init` | PN | CN | `contract` (confirms SLA, payment terms) |
+| `confirm` | CN | PN | `contract` (echo of on_init, with entitlements/payment proof) |
+| `on_confirm` | PN | CN | `contract` (status: ACTIVE, id assigned) |
 
 ### Fulfillment
 | Action | Notes |
@@ -61,8 +61,8 @@
 ### Catalog management
 | Action | Notes |
 |---|---|
-| `catalog/publish` | BPP pushes catalog(s) to CDS |
-| `catalog/on_publish` | CDS returns ACCEPTED/REJECTED per catalog |
+| `catalog/publish` | PN pushes catalog(s) to DS |
+| `catalog/on_publish` | DS returns ACCEPTED/REJECTED per catalog |
 
 ---
 
@@ -75,10 +75,10 @@ Context:
   timestamp: date-time       # ISO 8601 UTC with Z suffix
   messageId: uuid            # new per request; on_* callback echoes same messageId
   transactionId: uuid        # same across entire discover→confirm flow
-  bapId: string              # BAP subscriber ID
-  bapUri: uri                # BAP callback URL
-  bppId: string              # BPP subscriber ID — ABSENT only on discover
-  bppUri: uri                # BPP request URL — ABSENT only on discover
+  senderId: string              # CN subscriber ID
+  bapUri: uri                # CN callback URL
+  receiverId: string              # PN subscriber ID — ABSENT only on discover
+  bppUri: uri                # PN request URL — ABSENT only on discover
   networkId: string          # "<namespace_id>/<registry_id>" e.g. "beckn.one/testnet-retail"
   ttl: string                # ISO 8601 duration e.g. "PT30S"
 ```
@@ -94,7 +94,7 @@ Catalog:
   "@context": "https://schema.nfh.global/"
   "@type": "beckn:Catalog"
   id: string
-  bppId: string              # echoed from context
+  receiverId: string              # echoed from context
   bppUri: string             # echoed from context
   providerId: string
   descriptor:
@@ -161,7 +161,7 @@ Offer:
 Contract:
   "@context": "https://schema.nfh.global/Contract/v2.0/context.jsonld"   # required top-level JSON-LD
   "@type": "beckn:Contract"
-  id: string                    # uuid assigned by BPP (absent in early DRAFT)
+  id: string                    # uuid assigned by PN (absent in early DRAFT)
   displayId: string             # human-readable e.g. "DOM-BLR-20260310-001"
   status:
     "@context": "https://schema.nfh.global/"
@@ -196,8 +196,8 @@ Participant:
   displayName: string
   telephone: string             # direct prop, no wrapper
   email: string                 # direct prop, no wrapper
-  descriptor: Descriptor        # optional — for BPP participants
-  location: Location            # optional — for BPP participants
+  descriptor: Descriptor        # optional — for PN participants
+  location: Location            # optional — for PN participants
   rating:                       # optional
     ratingValue: number
     ratingCount: integer
@@ -230,7 +230,7 @@ Commitment:
       components: PriceComponent[]
     resourceId: string          # mirrors ref
     # ... domain fields (classification, cuisine, allergenInfo, etc.)
-    item:                       # inline Item object (echoed by BPP)
+    item:                       # inline Item object (echoed by PN)
       "@context": "https://schema.nfh.global/"
       "@type": "beckn:Resource"
       id: string
@@ -238,7 +238,7 @@ Commitment:
       resourceAttributes: { "@context", "@type", ...domain fields }
       price: { currency, value }
       isActive: boolean
-    offer:                      # inline Offer object (echoed by BPP)
+    offer:                      # inline Offer object (echoed by PN)
       "@context": "https://schema.nfh.global/"
       "@type": "beckn:Offer" | "beckn:FnBOffer"
       id: string
@@ -406,7 +406,7 @@ Error NACK:
 
 | Check | Correct | Wrong |
 |---|---|---|
-| Context fields | camelCase (`bapId`) | snake_case (`bap_id`) |
+| Context fields | camelCase (`senderId`) | snake_case (`bap_id`) |
 | Catalog items | `resources[]` | `items[]` |
 | Resource attributes | `resourceAttributes` | `itemAttributes` |
 | Contract execution | `performance[]` | `fulfillments[]` |

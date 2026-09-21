@@ -24,7 +24,7 @@ Reference examples:
 Read the user's scenario and extract:
 
 1. **Domain** — What vertical? (`food-and-beverage`, `retail`, `energy/ev-charging`, `energy/p2p-trading`, `energy/demand-flex`, `data/ddm`, `mobility/ride-hailing`, `mobility/transit`, `mobility/rental`, etc.)
-2. **Actors** — Who is the buyer (BAP side) and seller/provider (BPP side)?
+2. **Actors** — Who is the buyer (CN side) and seller/provider (PN side)?
 3. **Resource** — What good, service, or data is being exchanged?
 4. **Fulfillment type** — Physical delivery? Service? Energy transfer? Data download? API access?
 5. **Customization** — Does the buyer configure the resource (size, toppings, connector type, etc.)?
@@ -91,9 +91,9 @@ See [./references/payload-templates.md](./references/payload-templates.md) for c
   "context": {
     "version": "2.0.0",
     "action": "<action-name>",
-    "bapId": "<bap.example.com>",
+    "senderId": "<bap.example.com>",
     "bapUri": "https://<bap.example.com>/beckn",
-    "bppId": "<bpp.example.com>",
+    "receiverId": "<bpp.example.com>",
     "bppUri": "https://<bpp.example.com>/beckn",
     "networkId": "<namespace_id>/<registry_id>",
     "transactionId": "<uuid-same-across-flow>",
@@ -106,7 +106,7 @@ See [./references/payload-templates.md](./references/payload-templates.md) for c
 
 Rules:
 - All context fields are **camelCase** — never `bap_id`, `transaction_id` etc.
-- `bppId`/`bppUri` absent only on `discover`
+- `receiverId`/`bppUri` absent only on `discover`
 - `transactionId` same across entire discover→confirm flow
 - `messageId` new per request; callback echoes same `messageId`
 - No `domain` field — domain identity goes in `networkId` or catalog `@context`
@@ -139,7 +139,7 @@ the use case specifically calls for one:
 
 ```
 message.catalogs[]
-  ├── id, descriptor { name, shortDesc }, bppId, bppUri, providerId
+  ├── id, descriptor { name, shortDesc }, receiverId, bppUri, providerId
   └── resources[]
       ├── id, descriptor { name, shortDesc }, isActive, price { currency, value }
       ├── provider { id, descriptor, locations[] }
@@ -154,7 +154,7 @@ Offers array under catalog: `offers[]` — each offer has `id`, `resourceIds[]`,
 message.contract
   ├── @context: "https://schema.nfh.global/Contract/v2.0/context.jsonld"
   ├── @type: "beckn:Contract"
-  ├── id (UUID, assigned by BPP)
+  ├── id (UUID, assigned by PN)
   ├── displayId (human-readable, e.g. "ORD-20260310-001")
   ├── status { code: DRAFT|ACTIVE|CANCELLED|COMPLETE }
   ├── participants[] { id, displayName, telephone, email, ...role props }
@@ -172,7 +172,7 @@ message.contract
 ## Step 5 — Version discipline checklist
 
 Before writing any payload, confirm:
-- [ ] Context fields camelCase (`bapId` not `bap_id`, `messageId` not `message_id`)
+- [ ] Context fields camelCase (`senderId` not `bap_id`, `messageId` not `message_id`)
 - [ ] No `domain` key in context
 - [ ] `version: "2.0.0"` present
 - [ ] Contract has top-level `@context: "https://schema.nfh.global/Contract/v2.0/context.jsonld"` and `@type: "beckn:Contract"`
@@ -199,7 +199,7 @@ Ask yourself:
 
 ## Step 7 — Output format
 
-1. **Beckn mapping** — 2–4 sentences: BAP, BPP, resource, offer, performance, consideration
+1. **Beckn mapping** — 2–4 sentences: CN, PN, resource, offer, performance, consideration
 2. **Transaction flow** — numbered list with one-line descriptions
 3. **Schema table** — which `*Attributes` schemas used and why
 4. **Payloads** — one labelled fenced JSON block per action

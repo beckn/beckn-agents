@@ -32,22 +32,22 @@ Lifecycle: full order + tracking
 The skill always outputs:
 
 ### 1. Beckn mapping summary (2–4 sentences)
-Maps the scenario to Beckn concepts: who is the BAP, who is the BPP, what is the Resource,
+Maps the scenario to Beckn concepts: who is the CN, who is the PN, what is the Resource,
 what is the Offer, what is the Performance, what is the Consideration.
 
 ### 2. Transaction flow
 A numbered list of API steps:
 ```
-1. discover (BAP → CDS/BPP) — broadcast pizza search intent
-2. on_discover (BPP → BAP) — return Sarpino's catalog with pizza resources + offers
-3. select (BAP → BPP) — choose Margherita + SIZE=LARGE + EXTRA_CHEESE
-4. on_select (BPP → BAP) — return contract with INR 450 + INR 50 delivery
-5. init (BAP → BPP) — add buyer address + UPI payment preference
-6. on_init (BPP → BAP) — confirm payment terms + 45-min SLA
-7. confirm (BAP → BPP) — finalise order
-8. on_confirm (BPP → BAP) — return CONFIRMED contract with contract ID
-9. track (BAP → BPP) — request live tracking
-10. on_track (BPP → BAP) — return WebSocket tracking URL
+1. discover (CN → DS/PN) — broadcast pizza search intent
+2. on_discover (PN → CN) — return Sarpino's catalog with pizza resources + offers
+3. select (CN → PN) — choose Margherita + SIZE=LARGE + EXTRA_CHEESE
+4. on_select (PN → CN) — return contract with INR 450 + INR 50 delivery
+5. init (CN → PN) — add buyer address + UPI payment preference
+6. on_init (PN → CN) — confirm payment terms + 45-min SLA
+7. confirm (CN → PN) — finalise order
+8. on_confirm (PN → CN) — return CONFIRMED contract with contract ID
+9. track (CN → PN) — request live tracking
+10. on_track (PN → CN) — return WebSocket tracking URL
 ```
 
 ### 3. Custom schema table
@@ -80,8 +80,8 @@ If the scenario contains domain data not capturable by existing schemas:
 > After placing the order, they want to track the delivery in real time.
 
 **Beckn mapping**:
-- BAP: consumer app (e.g. buyer.ondc.org)
-- BPP: Sarpino's restaurant system (restaurant.sarpinos.ondc.org)
+- CN: consumer app (e.g. buyer.ondc.org)
+- PN: Sarpino's restaurant system (restaurant.sarpinos.ondc.org)
 - Domain: food-and-beverage
 - Resource: Margherita Pizza (FoodAndBeverageResource)
 - Offer: customisable with SIZE + TOPPINGS groups (FoodAndBeverageOffer)
