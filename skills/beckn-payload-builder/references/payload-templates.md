@@ -298,7 +298,7 @@ With JSONPath filter:
       "consideration": [
         {
           "id": "<consideration-id>",
-          "status": { "descriptor": { "code": "PENDING" } },
+          "status": { "code": "PENDING" },
           "considerationAttributes": {
             "@context": "https://schema.nfh.global/FnBPriceSpecification/v2.1/context.jsonld",
             "@type": "beckn:FnBPriceSpecification",
@@ -314,7 +314,7 @@ With JSONPath filter:
       "performance": [
         {
           "id": "<performance-id>",
-          "status": { "descriptor": { "code": "PENDING" } },
+          "status": { "code": "PENDING" },
           "performanceAttributes": {
             "@context": "https://schema.nfh.global/HyperlocalDelivery/v2.0/context.jsonld",
             "@type": "beckn:HyperlocalDelivery",
@@ -362,7 +362,7 @@ Same contract as `on_select`, with:
       "performance": [
         {
           "id": "<performance-id>",
-          "status": { "descriptor": { "code": "PENDING" } },
+          "status": { "code": "PENDING" },
           "performanceAttributes": {
             "@context": "https://schema.nfh.global/HyperlocalDelivery/v2.0/context.jsonld",
             "@type": "beckn:HyperlocalDelivery",
@@ -471,13 +471,13 @@ Same as `init` response body — PN echoes back with confirmation. No contract `
     "contract": {
       "id": "<contract-uuid>",
       "displayId": "<ORD-20260310-001>",
-      "status": { "descriptor": { "code": "ACTIVE" } },
+      "status": { "code": "ACTIVE" },
       "participants": ["<fully populated consumer + provider>"],
       "commitments": ["<same as confirm>"],
       "consideration": [
         {
           "id": "<consideration-id>",
-          "status": { "descriptor": { "code": "PENDING" } },
+          "status": { "code": "PENDING" },
           "considerationAttributes": {
             "@context": "https://schema.nfh.global/FnBPriceSpecification/v2.1/context.jsonld",
             "@type": "beckn:FnBPriceSpecification",
@@ -493,7 +493,7 @@ Same as `init` response body — PN echoes back with confirmation. No contract `
       "performance": [
         {
           "id": "<performance-id>",
-          "status": { "descriptor": { "code": "ACTIVE", "name": "Order Received", "shortDesc": "Being prepared" } },
+          "status": { "code": "ACTIVE", "name": "Order Received", "shortDesc": "Being prepared" },
           "performanceAttributes": {
             "@context": "https://schema.nfh.global/HyperlocalDelivery/v2.0/context.jsonld",
             "@type": "beckn:HyperlocalDelivery",
@@ -526,11 +526,11 @@ Same as `init` response body — PN echoes back with confirmation. No contract `
   "message": {
     "contract": {
       "id": "<contract-uuid>",
-      "status": { "descriptor": { "code": "ACTIVE" } },
+      "status": { "code": "ACTIVE" },
       "performance": [
         {
           "id": "<performance-id>",
-          "status": { "descriptor": { "code": "ACTIVE", "name": "Out for delivery", "shortDesc": "Your order is on the way" } },
+          "status": { "code": "ACTIVE", "name": "Out for delivery", "shortDesc": "Your order is on the way" },
           "performanceAttributes": { "...updated delivery state..." }
         }
       ]
@@ -556,7 +556,7 @@ Same as `init` response body — PN echoes back with confirmation. No contract `
   "message": {
     "contract": {
       "id": "<contract-uuid>",
-      "status": { "descriptor": { "code": "ACTIVE" } }
+      "status": { "code": "ACTIVE" }
     }
   }
 }
@@ -573,7 +573,7 @@ Same as `init` response body — PN echoes back with confirmation. No contract `
   "message": {
     "contract": {
       "id": "<contract-uuid>",
-      "status": { "descriptor": { "code": "CANCELLED" } }
+      "status": { "code": "CANCELLED" }
     }
   }
 }
@@ -653,6 +653,7 @@ Before outputting any payload set, verify:
 - [ ] `performanceAttributes` on Performance (not `fulfillmentAttributes`)
 - [ ] Contract has NO top-level `@context`/`@type` (Contract's `additionalProperties: false` rejects them — only `contractAttributes` carries JSON-LD)
 - [ ] Contract `status.code: "ACTIVE"` on on_confirm (not "CONFIRMED")
+- [ ] `status` is bare `{ code }` on Contract, Consideration, Performance (Descriptor via `$ref`/`allOf`) — NOT nested under a `descriptor` key. Only `Commitment.status` genuinely nests: `{ descriptor: { code } }`
 - [ ] Participants use array `@context`/`@type`, direct props (no `participantAttributes` wrapper)
 - [ ] `intent.filters.expression` (discover) is RFC 9535-compliant JSONPath: only `==`, `!=`, `<`, `<=`, `>`, `>=`, `&&`, `||`, `!` — no non-standard operators (e.g. `~`, `contains`, `=~`) or legacy JSONPath-Plus-only syntax
 - [ ] `considerationAttributes` uses `components[]` (not `breakup[]`), has `value` (not `totalAmount`)
