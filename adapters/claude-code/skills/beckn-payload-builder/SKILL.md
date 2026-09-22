@@ -19,6 +19,11 @@ Reference examples:
 > (`bap_id`, `transaction_id`) and `message.order`. Those formats are INVALID in v2.0.0 LTS.
 > Always use the v2.0.0 LTS spec structure with camelCase context fields.
 
+The `references/` files in this skill are a hand-maintained distillation of `beckn.yaml`, kept for
+speed — but they can drift from the spec (see git history for examples caught by live-adapter
+testing). For any object shape not covered here, or if a generated payload gets rejected by a real
+adapter/validator, fetch and read `beckn.yaml` directly rather than guessing — it is the ground truth.
+
 ## Step 1 — Parse the use case
 
 Read the user's scenario and extract:

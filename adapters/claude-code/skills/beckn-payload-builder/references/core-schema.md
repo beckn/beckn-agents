@@ -337,11 +337,14 @@ Intent:
 ### Tracking (on_track)
 ```yaml
 Tracking:
-  id: string
-  url: uri
-  websocketUrl: uri
-  status:
-    code: ACTIVE | INACTIVE
+  contract:                     # required, only id populated
+    id: string
+  status: ACTIVE | INACTIVE     # bare string enum — NOT an object, NOT nested under code
+  url: uri                      # single endpoint — no separate websocketUrl field
+  trackingAttributes:           # carries @context/@type (Attributes schema) — optional
+    "@context": "https://schema.nfh.global/<TrackingType>/v<version>/context.jsonld"
+    "@type": "beckn:<TrackingType>"
+    # ... domain fields
 ```
 
 ---

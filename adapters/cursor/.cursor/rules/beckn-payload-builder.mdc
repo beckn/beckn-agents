@@ -17,6 +17,11 @@ Reference examples:
 > (`bap_id`, `transaction_id`) and `message.order`. Those formats are INVALID in v2.0.0 LTS.
 > Always use the v2.0.0 LTS spec structure with camelCase context fields.
 
+The `references/` files in this skill are a hand-maintained distillation of `beckn.yaml`, kept for
+speed — but they can drift from the spec (see git history for examples caught by live-adapter
+testing). For any object shape not covered here, or if a generated payload gets rejected by a real
+adapter/validator, fetch and read `beckn.yaml` directly rather than guessing — it is the ground truth.
+
 ## Step 1 — Parse the use case
 
 Read the user's scenario and extract:
@@ -552,11 +557,14 @@ Intent:
 ### Tracking (on_track)
 ```yaml
 Tracking:
-  id: string
-  url: uri
-  websocketUrl: uri
-  status:
-    code: ACTIVE | INACTIVE
+  contract:                     # required, only id populated
+    id: string
+  status: ACTIVE | INACTIVE     # bare string enum — NOT an object, NOT nested under code
+  url: uri                      # single endpoint — no separate websocketUrl field
+  trackingAttributes:           # carries @context/@type (Attributes schema) — optional
+    "@context": "https://schema.nfh.global/<TrackingType>/v<version>/context.jsonld"
+    "@type": "beckn:<TrackingType>"
+    # ... domain fields
 ```
 
 ---
@@ -1830,7 +1838,7 @@ With JSONPath filter:
       "consideration": [
         {
           "id": "<consideration-id>",
-          "status": { "descriptor": { "code": "PENDING" } },
+          "status": { "code": "PENDING" },
           "considerationAttributes": {
             "@context": "https://schema.nfh.global/FnBPriceSpecification/v2.1/context.jsonld",
             "@type": "beckn:FnBPriceSpecification",
@@ -1846,7 +1854,7 @@ With JSONPath filter:
       "performance": [
         {
           "id": "<performance-id>",
-          "status": { "descriptor": { "code": "PENDING" } },
+          "status": { "code": "PENDING" },
           "performanceAttributes": {
             "@context": "https://schema.nfh.global/HyperlocalDelivery/v2.0/context.jsonld",
             "@type": "beckn:HyperlocalDelivery",
@@ -1894,7 +1902,7 @@ Same contract as `on_select`, with:
       "performance": [
         {
           "id": "<performance-id>",
-          "status": { "descriptor": { "code": "PENDING" } },
+          "status": { "code": "PENDING" },
           "performanceAttributes": {
             "@context": "https://schema.nfh.global/HyperlocalDelivery/v2.0/context.jsonld",
             "@type": "beckn:HyperlocalDelivery",
@@ -2003,13 +2011,13 @@ Same as `init` response body — PN echoes back with confirmation. No contract `
     "contract": {
       "id": "<contract-uuid>",
       "displayId": "<ORD-20260310-001>",
-      "status": { "descriptor": { "code": "ACTIVE" } },
+      "status": { "code": "ACTIVE" },
       "participants": ["<fully populated consumer + provider>"],
       "commitments": ["<same as confirm>"],
       "consideration": [
         {
           "id": "<consideration-id>",
-          "status": { "descriptor": { "code": "PENDING" } },
+          "status": { "code": "PENDING" },
           "considerationAttributes": {
             "@context": "https://schema.nfh.global/FnBPriceSpecification/v2.1/context.jsonld",
             "@type": "beckn:FnBPriceSpecification",
@@ -2025,7 +2033,7 @@ Same as `init` response body — PN echoes back with confirmation. No contract `
       "performance": [
         {
           "id": "<performance-id>",
-          "status": { "descriptor": { "code": "ACTIVE", "name": "Order Received", "shortDesc": "Being prepared" } },
+          "status": { "code": "ACTIVE", "name": "Order Received", "shortDesc": "Being prepared" },
           "performanceAttributes": {
             "@context": "https://schema.nfh.global/HyperlocalDelivery/v2.0/context.jsonld",
             "@type": "beckn:HyperlocalDelivery",
@@ -2058,11 +2066,11 @@ Same as `init` response body — PN echoes back with confirmation. No contract `
   "message": {
     "contract": {
       "id": "<contract-uuid>",
-      "status": { "descriptor": { "code": "ACTIVE" } },
+      "status": { "code": "ACTIVE" },
       "performance": [
         {
           "id": "<performance-id>",
-          "status": { "descriptor": { "code": "ACTIVE", "name": "Out for delivery", "shortDesc": "Your order is on the way" } },
+          "status": { "code": "ACTIVE", "name": "Out for delivery", "shortDesc": "Your order is on the way" },
           "performanceAttributes": { "...updated delivery state..." }
         }
       ]
@@ -2088,7 +2096,7 @@ Same as `init` response body — PN echoes back with confirmation. No contract `
   "message": {
     "contract": {
       "id": "<contract-uuid>",
-      "status": { "descriptor": { "code": "ACTIVE" } }
+      "status": { "code": "ACTIVE" }
     }
   }
 }
@@ -2105,7 +2113,7 @@ Same as `init` response body — PN echoes back with confirmation. No contract `
   "message": {
     "contract": {
       "id": "<contract-uuid>",
-      "status": { "descriptor": { "code": "CANCELLED" } }
+      "status": { "code": "CANCELLED" }
     }
   }
 }
@@ -2119,7 +2127,7 @@ Same as `init` response body — PN echoes back with confirmation. No contract `
 // track
 {
   "context": { "...action: track, same transactionId..." },
-  "message": { "tracking": { "id": "<performance-id>" } }
+  "message": { "tracking": { "contract": { "id": "<contract-uuid>" } } }
 }
 
 // on_track
@@ -2127,10 +2135,9 @@ Same as `init` response body — PN echoes back with confirmation. No contract `
   "context": { "...action: on_track, same transactionId..." },
   "message": {
     "tracking": {
-      "id": "<performance-id>",
+      "contract": { "id": "<contract-uuid>" },
       "url": "https://<bpp>/track/<contract-uuid>",
-      "websocketUrl": "wss://<bpp>/track/<contract-uuid>/live",
-      "status": { "descriptor": { "code": "ACTIVE" } }
+      "status": "ACTIVE"
     }
   }
 }
@@ -2185,6 +2192,7 @@ Before outputting any payload set, verify:
 - [ ] `performanceAttributes` on Performance (not `fulfillmentAttributes`)
 - [ ] Contract has NO top-level `@context`/`@type` (Contract's `additionalProperties: false` rejects them — only `contractAttributes` carries JSON-LD)
 - [ ] Contract `status.code: "ACTIVE"` on on_confirm (not "CONFIRMED")
+- [ ] `status` is bare `{ code }` on Contract, Consideration, Performance (Descriptor via `$ref`/`allOf`) — NOT nested under a `descriptor` key. Only `Commitment.status` genuinely nests: `{ descriptor: { code } }`
 - [ ] Participants use array `@context`/`@type`, direct props (no `participantAttributes` wrapper)
 - [ ] `intent.filters.expression` (discover) is RFC 9535-compliant JSONPath: only `==`, `!=`, `<`, `<=`, `>`, `>=`, `&&`, `||`, `!` — no non-standard operators (e.g. `~`, `contains`, `=~`) or legacy JSONPath-Plus-only syntax
 - [ ] `considerationAttributes` uses `components[]` (not `breakup[]`), has `value` (not `totalAmount`)
