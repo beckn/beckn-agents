@@ -1,10 +1,10 @@
 ---
 name: devkit-builder
-version: 1.0.0
-description: Builds a runnable Beckn devkit (docker-compose stack + onix-adapter config + routing rules + catalog publishing + sandbox mock fixtures + its own README) for a domain, given payloads produced by beckn-payload-builder. Follows the two-file compose convention, v2.0.0 LTS routing config, real registry-checked test identities, starter-kit's decentralized catalog-publishing model, and sandbox-2.0's undocumented response-resolution rules — all learned by booting real adapters, not by reading docs.
-tags: [beckn, onix, devkit, docker-compose, adapter, routing, sandbox, testnet, deployment]
-license: MIT
+description: 'Builds a runnable Beckn devkit (docker-compose stack + onix-adapter config + routing rules + catalog publishing + sandbox mock fixtures + its own README) for a domain, given payloads produced by beckn-payload-builder. Follows the two-file compose convention, v2.0.0 LTS routing config, real registry-checked test identities, starter-kit''s decentralized catalog-publishing model, and sandbox-2.0''s undocumented response-resolution rules — all learned by booting real adapters, not by reading docs.'
+metadata:
+  tags: beckn,onix,devkit,docker-compose,adapter,routing,sandbox,testnet,deployment
 ---
+
 
 ## What this skill produces
 
