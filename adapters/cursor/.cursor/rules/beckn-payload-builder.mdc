@@ -552,11 +552,14 @@ Intent:
 ### Tracking (on_track)
 ```yaml
 Tracking:
-  id: string
-  url: uri
-  websocketUrl: uri
-  status:
-    code: ACTIVE | INACTIVE
+  contract:                     # required, only id populated
+    id: string
+  status: ACTIVE | INACTIVE     # bare string enum — NOT an object, NOT nested under code
+  url: uri                      # single endpoint — no separate websocketUrl field
+  trackingAttributes:           # carries @context/@type (Attributes schema) — optional
+    "@context": "https://schema.nfh.global/<TrackingType>/v<version>/context.jsonld"
+    "@type": "beckn:<TrackingType>"
+    # ... domain fields
 ```
 
 ---
@@ -2119,7 +2122,7 @@ Same as `init` response body — PN echoes back with confirmation. No contract `
 // track
 {
   "context": { "...action: track, same transactionId..." },
-  "message": { "tracking": { "id": "<performance-id>" } }
+  "message": { "tracking": { "contract": { "id": "<contract-uuid>" } } }
 }
 
 // on_track
@@ -2127,10 +2130,9 @@ Same as `init` response body — PN echoes back with confirmation. No contract `
   "context": { "...action: on_track, same transactionId..." },
   "message": {
     "tracking": {
-      "id": "<performance-id>",
+      "contract": { "id": "<contract-uuid>" },
       "url": "https://<bpp>/track/<contract-uuid>",
-      "websocketUrl": "wss://<bpp>/track/<contract-uuid>/live",
-      "status": { "descriptor": { "code": "ACTIVE" } }
+      "status": "ACTIVE"
     }
   }
 }

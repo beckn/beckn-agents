@@ -587,7 +587,7 @@ Same as `init` response body — PN echoes back with confirmation. No contract `
 // track
 {
   "context": { "...action: track, same transactionId..." },
-  "message": { "tracking": { "id": "<performance-id>" } }
+  "message": { "tracking": { "contract": { "id": "<contract-uuid>" } } }
 }
 
 // on_track
@@ -595,10 +595,9 @@ Same as `init` response body — PN echoes back with confirmation. No contract `
   "context": { "...action: on_track, same transactionId..." },
   "message": {
     "tracking": {
-      "id": "<performance-id>",
+      "contract": { "id": "<contract-uuid>" },
       "url": "https://<bpp>/track/<contract-uuid>",
-      "websocketUrl": "wss://<bpp>/track/<contract-uuid>/live",
-      "status": { "descriptor": { "code": "ACTIVE" } }
+      "status": "ACTIVE"
     }
   }
 }
