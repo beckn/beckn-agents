@@ -12,7 +12,7 @@ Each uses JSON-LD (`@context` + `@type`) for semantic interoperability.
 - `contractAttributes` on `Contract`
 - Participant role props directly on `Participant` — no `participantAttributes` wrapper
 
-**`@context`/`@type` rule**: Only `*Attributes` bags and the top-level `Contract` carry these. All other core objects (Descriptor, Location, Commitment envelope, Consideration envelope, Performance envelope, Resource envelope, Catalog, Participant, Entitlement) do NOT get `@context`/`@type`.
+**`@context`/`@type` rule**: Only `*Attributes` bags carry these. All other core objects (`Contract`, Descriptor, Location, Commitment envelope, Consideration envelope, Performance envelope, Resource envelope, Catalog, Participant, Entitlement) do NOT get `@context`/`@type` — `Contract` has `additionalProperties: false` and rejects them (`property @context is unsupported`).
 
 > **Naming note**: the schemas below (e.g. `FnBItem`, `EvChargingOffer`, `GroceryItem`) are the
 > actual published artifacts in `beckn/schemas`/`beckn/DEG` — use their real names when generating
@@ -219,8 +219,6 @@ options:
   "@context": "https://schema.nfh.global/HyperlocalDelivery/v2.1/context.jsonld",
   "@type": "beckn:HyperlocalDelivery",
   "pickupLocation": {
-    "@context": "https://schema.nfh.global/Location/v2.0/context.jsonld",
-    "@type": "beckn:Location",
     "id": "store-id",
     "geo": { "type": "Point", "coordinates": [77.5946, 12.9716] },
     "address": {
@@ -232,8 +230,6 @@ options:
     }
   },
   "deliveryLocation": {
-    "@context": "https://schema.nfh.global/Location/v2.0/context.jsonld",
-    "@type": "beckn:Location",
     "geo": { "type": "Point", "coordinates": [77.5946, 12.9716] },
     "address": {
       "streetAddress": "Apt 204, Sunrise Heights",

@@ -206,8 +206,6 @@ With JSONPath filter:
   },
   "message": {
     "contract": {
-      "@context": "https://schema.nfh.global/Contract/v2.0/context.jsonld",
-      "@type": "beckn:Contract",
       "participants": [
         { "id": "<session-or-user-id>" },
         { "id": "<store-id>", "displayName": "<Store Name>" }
@@ -257,8 +255,6 @@ With JSONPath filter:
   },
   "message": {
     "contract": {
-      "@context": "https://schema.nfh.global/Contract/v2.0/context.jsonld",
-      "@type": "beckn:Contract",
       "participants": [
         { "id": "<session-or-user-id>" },
         {
@@ -357,8 +353,6 @@ Same contract as `on_select`, with:
   "context": { "...action: init, same transactionId..." },
   "message": {
     "contract": {
-      "@context": "https://schema.nfh.global/Contract/v2.0/context.jsonld",
-      "@type": "beckn:Contract",
       "participants": [
         { "id": "<user@example.com>", "displayName": "<Buyer Name>", "telephone": "+91<phone>", "email": "<buyer@example.com>" },
         { "...provider participant same as on_select..." }
@@ -432,8 +426,6 @@ Same as `init` response body — PN echoes back with confirmation. No contract `
   },
   "message": {
     "contract": {
-      "@context": "https://schema.nfh.global/Contract/v2.0/context.jsonld",
-      "@type": "beckn:Contract",
       "participants": ["<fully populated consumer + restaurant>"],
       "commitments": ["<same as on_init>"],
       "consideration": ["<same as on_init>"],
@@ -477,8 +469,6 @@ Same as `init` response body — PN echoes back with confirmation. No contract `
   },
   "message": {
     "contract": {
-      "@context": "https://schema.nfh.global/Contract/v2.0/context.jsonld",
-      "@type": "beckn:Contract",
       "id": "<contract-uuid>",
       "displayId": "<ORD-20260310-001>",
       "status": { "descriptor": { "code": "ACTIVE" } },
@@ -535,8 +525,6 @@ Same as `init` response body — PN echoes back with confirmation. No contract `
   "context": { "...action: on_status, same transactionId..." },
   "message": {
     "contract": {
-      "@context": "https://schema.nfh.global/Contract/v2.0/context.jsonld",
-      "@type": "beckn:Contract",
       "id": "<contract-uuid>",
       "status": { "descriptor": { "code": "ACTIVE" } },
       "performance": [
@@ -567,8 +555,6 @@ Same as `init` response body — PN echoes back with confirmation. No contract `
   "context": { "...action: on_cancel, try: true..." },
   "message": {
     "contract": {
-      "@context": "https://schema.nfh.global/Contract/v2.0/context.jsonld",
-      "@type": "beckn:Contract",
       "id": "<contract-uuid>",
       "status": { "descriptor": { "code": "ACTIVE" } }
     }
@@ -586,8 +572,6 @@ Same as `init` response body — PN echoes back with confirmation. No contract `
   "context": { "...action: on_cancel..." },
   "message": {
     "contract": {
-      "@context": "https://schema.nfh.global/Contract/v2.0/context.jsonld",
-      "@type": "beckn:Contract",
       "id": "<contract-uuid>",
       "status": { "descriptor": { "code": "CANCELLED" } }
     }
@@ -667,7 +651,7 @@ Before outputting any payload set, verify:
 - [ ] `resourceAttributes` on Resource (not `itemAttributes`)
 - [ ] `performance[]` in Contract (not `fulfillments[]`)
 - [ ] `performanceAttributes` on Performance (not `fulfillmentAttributes`)
-- [ ] Contract has `"@context": "https://schema.nfh.global/Contract/v2.0/context.jsonld"` at top level
+- [ ] Contract has NO top-level `@context`/`@type` (Contract's `additionalProperties: false` rejects them — only `contractAttributes` carries JSON-LD)
 - [ ] Contract `status.code: "ACTIVE"` on on_confirm (not "CONFIRMED")
 - [ ] Participants use array `@context`/`@type`, direct props (no `participantAttributes` wrapper)
 - [ ] `intent.filters.expression` (discover) is RFC 9535-compliant JSONPath: only `==`, `!=`, `<`, `<=`, `>`, `>=`, `&&`, `||`, `!` — no non-standard operators (e.g. `~`, `contains`, `=~`) or legacy JSONPath-Plus-only syntax
