@@ -261,7 +261,9 @@ HyperlocalDelivery:
   pickupLocation: Location
   deliveryLocation: Location
   itemsShipped:
-    - itemId: string
+    - "@context": [...multi-context array — domain-schema-defined, see custom-schemas.md...]
+      "@type": [...multi-type array...]
+      itemId: string
       offerId: string
       quantity: QuantityMeasure
       lineId: string
