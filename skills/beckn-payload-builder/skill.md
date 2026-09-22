@@ -124,16 +124,16 @@ the use case specifically calls for one:
 
 ### @context / @type rule — CRITICAL
 
-> **`@context` and `@type` belong ONLY on `*Attributes` extension objects and the top-level `Contract`.**
-> Core Beckn schema objects (`Descriptor`, `Location`, `Catalog`, `Resource`, `Offer`, `Commitment`,
-> `Consideration`, `Performance`, `Participant`, `Entitlement`) are already defined by `beckn.yaml`
-> and do **NOT** need `@context`/`@type` inline in the payload.
+> **`@context` and `@type` belong ONLY on `*Attributes` extension objects.**
+> Core Beckn schema objects (`Contract`, `Descriptor`, `Location`, `Catalog`, `Resource`, `Offer`,
+> `Commitment`, `Consideration`, `Performance`, `Participant`, `Entitlement`) are already defined by
+> `beckn.yaml`, have `additionalProperties: false`, and do **NOT** accept `@context`/`@type` inline
+> in the payload — a `Contract` object with them gets rejected (`property @context is unsupported`).
 
 | Object | @context/@type? |
 |---|---|
-| `Contract` (top-level only) | ✅ Yes — `"@context": "https://schema.nfh.global/Contract/v2.0/context.jsonld"` |
-| `*Attributes` (all extension bags) | ✅ Yes — specifies which domain schema |
-| Everything else (Descriptor, Location, Participant, Commitment, Consideration, Performance, Resource, Offer, Catalog, Entitlement) | ❌ No |
+| `*Attributes` (all extension bags, including `contractAttributes`) | ✅ Yes — specifies which domain schema |
+| Everything else (Contract, Descriptor, Location, Participant, Commitment, Consideration, Performance, Resource, Offer, Catalog, Entitlement) | ❌ No |
 
 ### Catalog structure (on_discover)
 
@@ -152,8 +152,6 @@ Offers array under catalog: `offers[]` — each offer has `id`, `resourceIds[]`,
 
 ```
 message.contract
-  ├── @context: "https://schema.nfh.global/Contract/v2.0/context.jsonld"
-  ├── @type: "beckn:Contract"
   ├── id (UUID, assigned by PN)
   ├── displayId (human-readable, e.g. "ORD-20260310-001")
   ├── status { code: DRAFT|ACTIVE|CANCELLED|COMPLETE }
@@ -175,8 +173,7 @@ Before writing any payload, confirm:
 - [ ] Context fields camelCase (`senderId` not `bap_id`, `messageId` not `message_id`)
 - [ ] No `domain` key in context
 - [ ] `version: "2.0.0"` present
-- [ ] Contract has top-level `@context: "https://schema.nfh.global/Contract/v2.0/context.jsonld"` and `@type: "beckn:Contract"`
-- [ ] `@context`/`@type` ONLY on `*Attributes` objects and the top-level Contract — NOT on Descriptor, Location, Consideration, Commitment, Performance, Participant, Resource, Offer, Catalog, Entitlement
+- [ ] `@context`/`@type` ONLY on `*Attributes` objects — NOT on Contract, Descriptor, Location, Consideration, Commitment, Performance, Participant, Resource, Offer, Catalog, Entitlement
 - [ ] Catalog uses `resources[]` not `items[]`
 - [ ] Contract uses `performance[]` not `fulfillments[]`
 - [ ] Participants use direct props (id, displayName, telephone, email) — no `participantAttributes` wrapper

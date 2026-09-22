@@ -9,20 +9,14 @@
 
 ## @context / @type rule
 
-**Only two things carry `@context` and `@type` in a Beckn payload:**
-
-1. **The `Contract` object** (top-level linked-data anchor):
-   ```json
-   { "@context": "https://schema.nfh.global/Contract/v2.0/context.jsonld", "@type": "beckn:Contract", ... }
-   ```
-
-2. **All `*Attributes` extension bags** (`resourceAttributes`, `offerAttributes`, `commitmentAttributes`, `performanceAttributes`, `considerationAttributes`, `contractAttributes`):
-   ```json
-   { "@context": "https://schema.nfh.global/FnBItem/v2.1/context.jsonld", "@type": "beckn:FnBItem", ... }
-   ```
+**Only the `*Attributes` extension bags carry `@context` and `@type` in a Beckn payload**
+(`resourceAttributes`, `offerAttributes`, `commitmentAttributes`, `performanceAttributes`, `considerationAttributes`, `contractAttributes`):
+```json
+{ "@context": "https://schema.nfh.global/FnBItem/v2.1/context.jsonld", "@type": "beckn:FnBItem", ... }
+```
 
 **Everything else does NOT get `@context`/`@type`:**
-`Catalog`, `Resource`, `Offer`, `Commitment`, `Consideration`, `Performance`, `Participant`, `Descriptor`, `Location`, `Entitlement` — these are all defined by `beckn.yaml` and need no inline JSON-LD annotation.
+`Contract`, `Catalog`, `Resource`, `Offer`, `Commitment`, `Consideration`, `Performance`, `Participant`, `Descriptor`, `Location`, `Entitlement` — these are all defined by `beckn.yaml` with `additionalProperties: false` and need no inline JSON-LD annotation. `Contract` in particular does NOT define `@context`/`@type` as properties — sending them gets rejected (`property @context is unsupported`); only its `contractAttributes` bag carries JSON-LD.
 
 ---
 
@@ -31,18 +25,18 @@
 ### Discovery
 | Action | Caller | Receiver | Message |
 |---|---|---|---|
-| `discover` | BAP | CDS/BPP | `intent` (textSearch, filters, spatial) |
-| `on_discover` | BPP/CDS | BAP | `catalogs[]` |
+| `discover` | CN | DS/PN | `intent` (textSearch, filters, spatial) |
+| `on_discover` | PN/DS | CN | `catalogs[]` |
 
 ### Transaction
 | Action | Caller | Receiver | Message |
 |---|---|---|---|
-| `select` | BAP | BPP | `contract` (DRAFT, with commitments) |
-| `on_select` | BPP | BAP | `contract` (with consideration and performance) |
-| `init` | BAP | BPP | `contract` (adds full buyer participant, delivery location) |
-| `on_init` | BPP | BAP | `contract` (confirms SLA, payment terms) |
-| `confirm` | BAP | BPP | `contract` (echo of on_init, with entitlements/payment proof) |
-| `on_confirm` | BPP | BAP | `contract` (status: ACTIVE, id assigned) |
+| `select` | CN | PN | `contract` (DRAFT, with commitments) |
+| `on_select` | PN | CN | `contract` (with consideration and performance) |
+| `init` | CN | PN | `contract` (adds full buyer participant, delivery location) |
+| `on_init` | PN | CN | `contract` (confirms SLA, payment terms) |
+| `confirm` | CN | PN | `contract` (echo of on_init, with entitlements/payment proof) |
+| `on_confirm` | PN | CN | `contract` (status: ACTIVE, id assigned) |
 
 ### Fulfillment
 | Action | Notes |
@@ -61,8 +55,8 @@
 ### Catalog management
 | Action | Notes |
 |---|---|
-| `catalog/publish` | BPP pushes catalog(s) to CDS |
-| `catalog/on_publish` | CDS returns ACCEPTED/REJECTED per catalog |
+| `catalog/publish` | PN pushes catalog(s) to DS |
+| `catalog/on_publish` | DS returns ACCEPTED/REJECTED per catalog |
 
 ---
 
@@ -75,10 +69,10 @@ Context:
   timestamp: date-time       # ISO 8601 UTC with Z suffix
   messageId: uuid            # new per request; on_* callback echoes same messageId
   transactionId: uuid        # same across entire discover→confirm flow
-  bapId: string              # BAP subscriber ID
-  bapUri: uri                # BAP callback URL
-  bppId: string              # BPP subscriber ID — ABSENT only on discover
-  bppUri: uri                # BPP request URL — ABSENT only on discover
+  senderId: string              # CN subscriber ID
+  bapUri: uri                # CN callback URL
+  receiverId: string              # PN subscriber ID — ABSENT only on discover
+  bppUri: uri                # PN request URL — ABSENT only on discover
   networkId: string          # "<namespace_id>/<registry_id>" e.g. "beckn.one/testnet-retail"
   ttl: string                # ISO 8601 duration e.g. "PT30S"
 ```
@@ -91,15 +85,11 @@ Context:
 
 ```yaml
 Catalog:
-  "@context": "https://schema.nfh.global/"
-  "@type": "beckn:Catalog"
   id: string
-  bppId: string              # echoed from context
+  receiverId: string              # echoed from context
   bppUri: string             # echoed from context
   providerId: string
   descriptor:
-    "@context": "https://schema.nfh.global/"
-    "@type": "beckn:Descriptor"
     name: string
     shortDesc: string
     thumbnailImage: uri
@@ -111,12 +101,8 @@ Catalog:
 
 ```yaml
 Item:
-  "@context": "https://schema.nfh.global/"
-  "@type": "beckn:Resource"
   id: string
   descriptor:
-    "@context": "https://schema.nfh.global/"
-    "@type": "beckn:Descriptor"
     name: string
     shortDesc: string
     thumbnailImage: uri
@@ -129,8 +115,8 @@ Item:
     currency: string         # ISO 4217
     value: number
   isActive: boolean
-  resourceAttributes:            # domain extension — NOT "resourceAttributes"
-    "@context": "https://schema.nfh.global/"
+  resourceAttributes:            # domain extension — carries @context/@type (Attributes schema)
+    "@context": "https://schema.nfh.global/<DomainItemType>/v<version>/context.jsonld"
     "@type": "beckn:<DomainItemType>"
     # ... domain fields
 ```
@@ -139,15 +125,13 @@ Item:
 
 ```yaml
 Offer:
-  "@context": "https://schema.nfh.global/"
-  "@type": "beckn:Offer" | "beckn:FnBOffer"
   id: string
   itemId: string
   price:
     currency: string
     value: number
-  offerAttributes:           # domain extension
-    "@context": "https://schema.nfh.global/"
+  offerAttributes:           # domain extension — carries @context/@type (Attributes schema)
+    "@context": "https://schema.nfh.global/<DomainOfferType>/v<version>/context.jsonld"
     "@type": "beckn:<DomainOfferType>"
     customization:
       groups: CustomizationGroup[]
@@ -159,13 +143,11 @@ Offer:
 
 ```yaml
 Contract:
-  "@context": "https://schema.nfh.global/Contract/v2.0/context.jsonld"   # required top-level JSON-LD
-  "@type": "beckn:Contract"
-  id: string                    # uuid assigned by BPP (absent in early DRAFT)
+  # no top-level @context/@type — Contract has additionalProperties: false and defines neither
+  id: string                    # uuid assigned by PN (absent in early DRAFT)
   displayId: string             # human-readable e.g. "DOM-BLR-20260310-001"
   status:
-    "@context": "https://schema.nfh.global/"
-    "@type": "beckn:Descriptor"
+    # Descriptor — no @context/@type here either
     code: DRAFT | ACTIVE | COMPLETE | CANCELLED
   participants: Participant[]
   commitments: Commitment[]
@@ -196,8 +178,8 @@ Participant:
   displayName: string
   telephone: string             # direct prop, no wrapper
   email: string                 # direct prop, no wrapper
-  descriptor: Descriptor        # optional — for BPP participants
-  location: Location            # optional — for BPP participants
+  descriptor: Descriptor        # optional — for PN participants
+  location: Location            # optional — for PN participants
   rating:                       # optional
     ratingValue: number
     ratingCount: integer
@@ -213,11 +195,9 @@ Participant:
 
 ```yaml
 Commitment:
-  "@context": "https://schema.nfh.global/"
-  "@type": "beckn:Commitment"
   ref: string                   # item/resource ID being committed
-  commitmentAttributes:         # domain extension — contains line details
-    "@context": "https://schema.nfh.global/"
+  commitmentAttributes:         # domain extension — carries @context/@type (Attributes schema)
+    "@context": "https://schema.nfh.global/<DomainCommitmentType>/v<version>/context.jsonld"
     "@type": "beckn:<DomainCommitmentType>"
     lineId: string              # e.g. "line-001"
     offerId: string
@@ -230,17 +210,13 @@ Commitment:
       components: PriceComponent[]
     resourceId: string          # mirrors ref
     # ... domain fields (classification, cuisine, allergenInfo, etc.)
-    item:                       # inline Item object (echoed by BPP)
-      "@context": "https://schema.nfh.global/"
-      "@type": "beckn:Resource"
+    item:                       # inline Item object (echoed by PN) — no @context/@type on Item itself
       id: string
       descriptor: Descriptor
       resourceAttributes: { "@context", "@type", ...domain fields }
       price: { currency, value }
       isActive: boolean
-    offer:                      # inline Offer object (echoed by BPP)
-      "@context": "https://schema.nfh.global/"
-      "@type": "beckn:Offer" | "beckn:FnBOffer"
+    offer:                      # inline Offer object (echoed by PN) — no @context/@type on Offer itself
       id: string
       itemId: string
       offerAttributes: { "@context", "@type", customization: {...} }
@@ -251,14 +227,10 @@ Commitment:
 
 ```yaml
 Consideration:
-  "@context": "https://schema.nfh.global/"
-  "@type": "beckn:Consideration"
   status:
-    "@context": "https://schema.nfh.global/"
-    "@type": "beckn:Descriptor"
     code: PENDING | SETTLED | VOIDED
-  considerationAttributes:
-    "@context": "https://schema.nfh.global/"
+  considerationAttributes:      # carries @context/@type (Attributes schema)
+    "@context": "https://schema.nfh.global/<DomainPriceType>/v<version>/context.jsonld"
     "@type": "beckn:<DomainPriceType>"    # e.g. beckn:FnBPriceSpecification
     currency: string
     value: number                         # total amount
@@ -273,16 +245,12 @@ Consideration:
 
 ```yaml
 Fulfillment:
-  "@context": "https://schema.nfh.global/"
-  "@type": "beckn:Fulfillment"
   id: string
   status:
-    "@context": "https://schema.nfh.global/"
-    "@type": "beckn:Descriptor"
     name: string                # human-readable e.g. "Order Received"
     shortDesc: string
-  performanceAttributes:        # NOT "performanceAttributes"
-    "@context": "https://schema.nfh.global/"
+  performanceAttributes:        # carries @context/@type (Attributes schema)
+    "@context": "https://schema.nfh.global/<FulfillmentType>/v<version>/context.jsonld"
     "@type": "beckn:<FulfillmentType>"   # e.g. beckn:HyperlocalDelivery
     # ... fulfillment-type fields
 ```
@@ -290,13 +258,10 @@ Fulfillment:
 **HyperlocalDelivery** (food & retail delivery):
 ```yaml
 HyperlocalDelivery:
-  "@type": "beckn:HyperlocalDelivery"
   pickupLocation: Location
   deliveryLocation: Location
   itemsShipped:
-    - "@context": [...multi-context array...]
-      "@type": [...multi-type array...]
-      itemId: string
+    - itemId: string
       offerId: string
       quantity: QuantityMeasure
       lineId: string
@@ -307,8 +272,6 @@ HyperlocalDelivery:
 ```yaml
 Entitlement:
   descriptor:
-    "@context": "https://schema.nfh.global/"
-    "@type": "beckn:Descriptor"
     name: string
     shortDesc: string
   type: PAYMENT_PROOF | VOUCHER | COUPON
@@ -322,8 +285,6 @@ Entitlement:
 ### Descriptor
 ```yaml
 Descriptor:
-  "@context": "https://schema.nfh.global/"
-  "@type": "beckn:Descriptor"
   name: string
   shortDesc: string
   longDesc: string
@@ -341,8 +302,6 @@ QuantityMeasure:
 ### Location
 ```yaml
 Location:
-  "@context": "https://schema.nfh.global/"
-  "@type": "beckn:Location"
   id: string
   geo:
     type: "Point"
@@ -380,8 +339,6 @@ Tracking:
   url: uri
   websocketUrl: uri
   status:
-    "@context": "https://schema.nfh.global/"
-    "@type": "beckn:Descriptor"
     code: ACTIVE | INACTIVE
 ```
 
@@ -406,7 +363,7 @@ Error NACK:
 
 | Check | Correct | Wrong |
 |---|---|---|
-| Context fields | camelCase (`bapId`) | snake_case (`bap_id`) |
+| Context fields | camelCase (`senderId`) | snake_case (`bap_id`) |
 | Catalog items | `resources[]` | `items[]` |
 | Resource attributes | `resourceAttributes` | `itemAttributes` |
 | Contract execution | `performance[]` | `fulfillments[]` |
@@ -414,4 +371,4 @@ Error NACK:
 | on_confirm status | `code: "ACTIVE"` | `code: "CONFIRMED"` |
 | Participant props | Direct on object | Inside `participantAttributes` wrapper |
 | Consideration total | `value` + `components[]` | `totalAmount` + `breakup[]` |
-| Contract JSON-LD | Top-level `@context` + `@type` on contract | Absent |
+| Contract JSON-LD | Absent (Contract has no `@context`/`@type` properties) | Top-level `@context` + `@type` on contract |
