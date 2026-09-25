@@ -143,7 +143,7 @@ description: >-
 
 # Worked example
 
-The following are example files for a mobility network operated by an NFO (`nfo-x.com`) with two NPs: `np1.com` (on the [file-based path](file-based.md)) and `np2.com` (on the [hosted path](hosted.md), referenced via its dedi.global lookup URL).
+The following are example files for a mobility network operated by an NFO (`nfo-x.com`) with two NPs: `np1.com` (on the [file-based path](https://docs.nfh.global/build/onboarding/file-based)) and `np2.com` (on the [hosted path](https://docs.nfh.global/build/onboarding/hosted), referenced via its dedi.global lookup URL).
 
 ```mermaid
 flowchart LR
