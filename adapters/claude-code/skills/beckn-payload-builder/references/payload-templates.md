@@ -7,16 +7,16 @@ Placeholders use `<angle-bracket>` notation. Replace with scenario-specific valu
 
 ## discover
 
-**Caller**: BAP → CDS/BPP  
+**Caller**: CN → DS/PN  
 **Purpose**: Broadcast intent to find catalogs  
-**Note**: `bppId`/`bppUri` are absent (broadcast)
+**Note**: `receiverId`/`bppUri` are absent (broadcast)
 
 ```json
 {
   "context": {
     "version": "2.0.0",
     "action": "discover",
-    "bapId": "food-app.example.com",
+    "senderId": "food-app.example.com",
     "bapUri": "https://food-app.example.com/beckn",
     "networkId": "beckn.one/testnet-retail",
     "ttl": "PT30S",
@@ -72,7 +72,7 @@ With JSONPath filter:
 
 ## on_discover
 
-**Caller**: BPP/CDS → BAP  
+**Caller**: PN/DS → CN  
 **Purpose**: Return matching catalogs with items and offers
 
 ```json
@@ -80,9 +80,9 @@ With JSONPath filter:
   "context": {
     "version": "2.0.0",
     "action": "on_discover",
-    "bapId": "food-app.example.com",
+    "senderId": "food-app.example.com",
     "bapUri": "https://food-app.example.com/beckn",
-    "bppId": "tomato.com",
+    "receiverId": "tomato.com",
     "bppUri": "https://tomato.com/beckn",
     "networkId": "beckn.one/testnet-retail",
     "ttl": "PT30S",
@@ -94,7 +94,7 @@ With JSONPath filter:
     "catalogs": [
       {
         "id": "<catalog-id>",
-        "bppId": "tomato.com",
+        "receiverId": "tomato.com",
         "bppUri": "https://tomato.com/beckn",
         "providerId": "<provider-id>",
         "descriptor": {
@@ -185,18 +185,18 @@ With JSONPath filter:
 
 ## select
 
-**Caller**: BAP → BPP  
+**Caller**: CN → PN  
 **Purpose**: Choose item+offer, create DRAFT contract  
-**Note**: BAP sends minimal commitments — BPP echoes back full item/offer detail in on_select
+**Note**: CN sends minimal commitments — PN echoes back full item/offer detail in on_select
 
 ```json
 {
   "context": {
     "version": "2.0.0",
     "action": "select",
-    "bapId": "food-app.example.com",
+    "senderId": "food-app.example.com",
     "bapUri": "https://food-app.example.com/beckn",
-    "bppId": "tomato.com",
+    "receiverId": "tomato.com",
     "bppUri": "https://tomato.com/beckn",
     "networkId": "beckn.one/testnet-retail",
     "ttl": "PT30S",
@@ -237,7 +237,7 @@ With JSONPath filter:
 
 ## on_select
 
-**Caller**: BPP → BAP  
+**Caller**: PN → CN  
 **Purpose**: Return contract with prices, full resource/offer detail, performance placeholder
 
 ```json
@@ -245,9 +245,9 @@ With JSONPath filter:
   "context": {
     "version": "2.0.0",
     "action": "on_select",
-    "bapId": "food-app.example.com",
+    "senderId": "food-app.example.com",
     "bapUri": "https://food-app.example.com/beckn",
-    "bppId": "tomato.com",
+    "receiverId": "tomato.com",
     "bppUri": "https://tomato.com/beckn",
     "networkId": "beckn.one/testnet-retail",
     "ttl": "PT30S",
@@ -345,7 +345,7 @@ With JSONPath filter:
 
 ## init
 
-**Caller**: BAP → BPP  
+**Caller**: CN → PN  
 **Purpose**: Add full buyer details and complete delivery address
 
 Same contract as `on_select`, with:
@@ -396,10 +396,10 @@ Same contract as `on_select`, with:
 
 ## on_init
 
-**Caller**: BPP → BAP  
+**Caller**: PN → CN  
 **Purpose**: Confirm payment terms, finalize SLA
 
-Same as `init` response body — BPP echoes back with confirmation. No contract `id` yet (assigned on on_confirm).
+Same as `init` response body — PN echoes back with confirmation. No contract `id` yet (assigned on on_confirm).
 
 ```json
 {
@@ -412,7 +412,7 @@ Same as `init` response body — BPP echoes back with confirmation. No contract 
 
 ## confirm
 
-**Caller**: BAP → BPP  
+**Caller**: CN → PN  
 **Purpose**: Finalise contract; include payment proof in entitlements
 
 ```json
@@ -420,9 +420,9 @@ Same as `init` response body — BPP echoes back with confirmation. No contract 
   "context": {
     "version": "2.0.0",
     "action": "confirm",
-    "bapId": "food-app.example.com",
+    "senderId": "food-app.example.com",
     "bapUri": "https://food-app.example.com/beckn",
-    "bppId": "tomato.com",
+    "receiverId": "tomato.com",
     "bppUri": "https://tomato.com/beckn",
     "networkId": "beckn.one/testnet-retail",
     "ttl": "PT30S",
@@ -457,7 +457,7 @@ Same as `init` response body — BPP echoes back with confirmation. No contract 
 
 ## on_confirm
 
-**Caller**: BPP → BAP  
+**Caller**: PN → CN  
 **Purpose**: Contract confirmed — status becomes ACTIVE, contract gets id + displayId
 
 ```json
@@ -465,9 +465,9 @@ Same as `init` response body — BPP echoes back with confirmation. No contract 
   "context": {
     "version": "2.0.0",
     "action": "on_confirm",
-    "bapId": "food-app.example.com",
+    "senderId": "food-app.example.com",
     "bapUri": "https://food-app.example.com/beckn",
-    "bppId": "tomato.com",
+    "receiverId": "tomato.com",
     "bppUri": "https://tomato.com/beckn",
     "networkId": "beckn.one/testnet-retail",
     "ttl": "PT30S",
@@ -524,13 +524,13 @@ Same as `init` response body — BPP echoes back with confirmation. No contract 
 ## status / on_status
 
 ```json
-// status (BAP → BPP)
+// status (CN → PN)
 {
   "context": { "...action: status, same transactionId..." },
   "message": { "contract": { "id": "<contract-uuid>" } }
 }
 
-// on_status (BPP → BAP)
+// on_status (PN → CN)
 {
   "context": { "...action: on_status, same transactionId..." },
   "message": {
@@ -659,8 +659,8 @@ Same as `init` response body — BPP echoes back with confirmation. No contract 
 Before outputting any payload set, verify:
 
 - [ ] `context.version: "2.0.0"` on every payload
-- [ ] All context fields camelCase (`bapId`, `messageId`, `transactionId`, `networkId`)
-- [ ] `bppId`/`bppUri` absent only from `discover`
+- [ ] All context fields camelCase (`senderId`, `messageId`, `transactionId`, `networkId`)
+- [ ] `receiverId`/`bppUri` absent only from `discover`
 - [ ] `transactionId` same UUID across discover → on_confirm
 - [ ] `messageId` unique per request; on_* mirrors the request's messageId
 - [ ] `message.catalogs[].resources[]` (not `items[]`)
