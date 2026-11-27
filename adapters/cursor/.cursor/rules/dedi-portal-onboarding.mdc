@@ -1,0 +1,315 @@
+---
+description: '"Onboards a Network Facilitator Organisation (NFO) or Network Participant (NP) onto the NFH fabric using the HOSTED DeDi registry at dedi.global — creating the namespace, the registry, and the subscriber / reference records through the DeDi portal (driven with a browser tool such as Claude in Chrome) or the hosted API — and proving domain control with a DNS TXT record plus optional A records, across DNS providers (Namecheap and others), using a DNS MCP when one is available. The hosted counterpart to dedi-onboarding-builder (file-based). Never handles private keys or account passwords."'
+alwaysApply: false
+---
+
+
+## What this skill does
+
+Onboards an entity onto the **NFH fabric** using the **hosted** DeDi registry at `dedi.global`
+(API `https://api.dedi.global`), by creating — in order — a **namespace**, a **registry**, and the
+**records** inside it, then proving domain control over the namespace with **DNS**.
+
+Two onboarding paths exist. Pick one:
+
+| Path | Where the registry lives | Skill |
+|---|---|---|
+| **Hosted** | `dedi.global` (portal + `api.dedi.global`) | **this skill** |
+| **File-based** | the entity's own domain (`/.well-known/dedi.index.json` + a signed registry file) | [`dedi-onboarding-builder`](../dedi-onboarding-builder/skill.md) |
+
+Use the file-based skill when the entity self-hosts signed files; use **this** skill when it registers
+on the hosted dedi.global directory.
+
+### Entities and roles
+
+- **Namespace** — the entity's identity in DeDi, tied to its domain (e.g. `nfo-x.com`). Proven by DNS.
+- **Registry** — a typed collection inside a namespace. Its **role schema** decides what it holds:
+  - **NFO** → a *Beckn Subscriber Reference* registry — references to its NPs' registries/records.
+  - **NP** → a *Beckn Subscriber* registry — its own endpoint + public keys.
+- **Record** — one entry. For an NP, one record **per subscriber role**. In Beckn the subscriber
+  roles are **BAP** (consumer / buyer-side node, "VAP") and **BPP** (provider / seller-side node,
+  "VPP"), plus `CS`, `DS`, `CDS`. "Add a VAP / VPP" = add a record whose `type` is `BAP` / `BPP`.
+
+## Authoritative references — fetch live, never invent
+
+Per this repo's ground rules, **never invent an endpoint, schema field, URL or DNS token.** When the
+exact write route, field or verification token is not already confirmed below, fetch it:
+
+1. **DeDi docs MCP** (`dedi-docs`) or `https://dedi-global.gitbook.io/docs` — hosted portal + API.
+2. **NFH fabric onboarding guide** — `https://docs.nfh.global/build/onboarding` (append `.md` for
+   Markdown, or `GET https://docs.nfh.global/index.md?ask=<question>&goal=<goal>`). The NFO step is
+   *"If you are an NFO: add NPs to your network."*
+3. **DeDi protocol schemas** (role schemas) —
+   `https://github.com/LF-Decentralized-Trust-labs/decentralized-directory-protocol`.
+4. The live **portal** itself, read through the browser tool.
+
+**Confirmed public read endpoints** (safe to use directly; verify writes against the docs):
+
+- Namespace/registry query: `GET https://api.dedi.global/dedi/query/<namespace>/<registry>`
+- Record lookup: `GET https://api.dedi.global/dedi/lookup/<namespace>/<registry>/<record>`
+
+## Hard rules
+
+1. **Never ask for, accept, store, or log a private signing key**, and **never type the operator's
+   DeDi account password or an API key into a login form or request.** Authentication is the
+   operator's to perform. Work with **public** keys only. If a private key is pasted, tell the user
+   to rotate it.
+2. **Writes go to a shared, live registry.** Before every create (namespace, registry, record),
+   show the exact values and get explicit confirmation. Prefer **sandbox / testnet** first.
+3. **Validate the NP before adding a reference** (NFO path): confirm its callback URL, role, public
+   key and environment match what was supplied (read its record with the lookup endpoint).
+4. **Verify by reading back.** After any write, re-read with the query/lookup endpoint and confirm
+   `state: live` and the expected fields — do not report success from the write response alone.
+5. **No secrets in URLs or query strings.** API keys and tokens stay with the operator's tooling.
+
+## Operating mode A — browser tool (primary; the portal is UI-driven)
+
+The hosted onboarding guide describes portal actions, so driving the portal with a browser tool
+(e.g. **Claude in Chrome**) is the robust path. See `references/portal-browser-flow.md` for the
+click-by-click flow. In outline:
+
+1. **Load the browser tool** and `tabs_context` first; open a new tab to `dedi.global`.
+2. **The operator logs in** (OAuth / magic link / API key). The skill never enters the password.
+3. **Create the namespace** for the entity's domain.
+4. **Create the registry** — choose the role schema (Subscriber for an NP, Subscriber Reference for
+   an NFO); name it by the convention `<nfoname>_<networkname>_<env>_registry` (NP) or
+   `..._ref_registry` (NFO).
+5. **Add records** (see "The records" below), confirming each before submit.
+6. **Prove the domain with DNS** (mode C), then complete verification in the portal.
+7. **Verify** every write with the public query/lookup endpoints.
+
+Never trigger a native browser dialog; read results back with the query API rather than scraping.
+
+## Operating mode B — hosted API
+
+Reads use the confirmed endpoints above. **Writes require the namespace account's API key**, which
+the skill must **not** embed or request in chat — the operator runs the authenticated write with
+their own tooling, or uses mode A. For the exact write routes and bodies, consult `dedi-docs`; do
+not hardcode an unverified route.
+
+## The records
+
+Build the record `details` to the role schema (fetch the live schema; fields confirmed from the
+NFH testnet registry):
+
+- **NP — Beckn Subscriber** (`type: BAP|BPP|CS|DS|CDS`): `subscriber_id` (the domain),
+  `url` (ONIX callback base), `type`, `countries`, `signing_public_key`, `encr_public_key`.
+- **NFO — Beckn Subscriber Reference** (`type: Registry|Record`): `subscriber_id`, `url`
+  (the NP's DeDi lookup URL, e.g. `https://api.dedi.global/dedi/lookup/<np>/<registry>`), `type`.
+  Record names must be unique within the registry.
+
+## Operating mode C — DNS (domain proof + hosting)
+
+DeDi proves namespace ownership with a **DNS TXT** record; hosting a callback/host often also needs
+an **A** record. Get the **exact TXT name and value from the portal's verification step** (do not
+invent the token). Then set the records with whatever the operator uses — in order of preference:
+
+1. **A DNS MCP if one is connected** (e.g. a Cloudflare/Namecheap MCP) — list tools first and use it.
+2. **The provider's API** (operator supplies/runs the credential). Namecheap:
+   `namecheap.domains.dns.setHosts` (worked example in `references/dns-providers.md`).
+3. **The provider portal via the browser tool** (Namecheap → *Advanced DNS*, etc.).
+
+Then confirm propagation: `dig +short TXT <name>` and `dig +short A <host>` before finishing portal
+verification. `references/dns-providers.md` covers Namecheap, Cloudflare, Route 53, Google Cloud DNS
+and the generic pattern.
+
+## Verify end to end
+
+- `GET /dedi/query/<namespace>/<registry>` returns the registry with your records, `state: live`.
+- Each NP record resolves via `/dedi/lookup/...`; NFO reference `url`s resolve.
+- DNS TXT (and A) resolve publicly; the portal shows the namespace **verified**.
+- Record names unique; `next_update` (if shown) in the future.
+
+## References
+
+- `references/portal-browser-flow.md` — Claude-in-Chrome steps for the dedi.global portal.
+- `references/dns-providers.md` — TXT/A via Namecheap, Cloudflare, Route 53, Google Cloud DNS, MCP, generic.
+- `references/worked-example.md` — a complete hosted NFO + NP onboarding (fictional identifiers).
+
+---
+<!-- inlined reference: dns-providers.md -->
+
+# DNS records for DeDi onboarding
+
+DeDi proves namespace (domain) ownership with a **DNS TXT** record. Hosting a callback/host may also
+need an **A** record (or CNAME). Two rules hold for every provider:
+
+- **Get the exact TXT name and value from the DeDi portal's verification step.** Never invent the
+  token.
+- **The credential stays with the operator.** Never put an API key in a URL or ask for it in chat;
+  if there is no DNS MCP, the operator runs the API call or edits DNS in their provider portal.
+
+Order of preference: **(1) a DNS MCP if connected → (2) the provider API, operator-run → (3) the
+provider portal via the browser tool.**
+
+## 1. DNS MCP (preferred when available)
+
+List the available tools first (an MCP may be deferred). If a DNS provider MCP is connected
+(Cloudflare, Namecheap, Route 53, etc.), use its create-record tool: set `type` (`TXT`/`A`), `name`,
+`content`/`value`, and `ttl`. These run as the authenticated user, so no key passes through chat.
+If none is connected, say so and fall back to mode 2 or 3.
+
+## 2. Provider API (operator-run)
+
+### Namecheap
+
+`namecheap.domains.dns.setHosts` **replaces the full host list**, so include existing records plus
+the new one. Params use `HostName1/RecordType1/Address1/TTL1`, `...2`, etc. Example (operator runs
+it; `<API_KEY>` is theirs, never logged):
+
+```
+https://api.namecheap.com/xml.response?ApiUser=<user>&ApiKey=<API_KEY>&UserName=<user>
+  &ClientIp=<ip>&Command=namecheap.domains.dns.setHosts
+  &SLD=example&TLD=com
+  &HostName1=@&RecordType1=TXT&Address1=<dedi-txt-value>&TTL1=300
+  &HostName2=@&RecordType2=A&Address2=<host-ip>&TTL2=300
+```
+
+Enable API access in the Namecheap dashboard and allowlist the client IP first. TXT `HostName` is the
+subdomain the portal names (often `@` or `_dedi`-style); copy it exactly.
+
+### Cloudflare
+
+`POST https://api.cloudflare.com/client/v4/zones/<zone_id>/dns_records`
+`Authorization: Bearer <token>` · body `{"type":"TXT","name":"<name>","content":"<value>","ttl":300}`
+(`A` the same with `content:"<ip>"`). Operator supplies the token.
+
+### AWS Route 53
+
+`aws route53 change-resource-record-sets --hosted-zone-id <id> --change-batch <json>` with an
+`UPSERT` of a `TXT` (value **double-quoted**) or `A` record.
+
+### Google Cloud DNS
+
+`gcloud dns record-sets create <name> --zone=<zone> --type=TXT --ttl=300 --rrdatas="<value>"`
+(or `--type=A --rrdatas=<ip>`).
+
+## 3. Provider portal via the browser tool
+
+If there is no API/MCP, drive the provider's dashboard with the browser tool (see
+`portal-browser-flow.md` session rules). Namecheap: Domain List → **Manage** → **Advanced DNS** →
+**Add New Record** → TXT (Host, Value, TTL) and/or A record. The operator stays logged in; the skill
+never enters credentials.
+
+## Verify propagation
+
+```
+dig +short TXT <name>      # expect the exact DeDi token
+dig +short A <host>        # expect the host IP
+```
+
+Only return to the DeDi portal to finish verification once these resolve. Propagation can take a few
+minutes to a couple of hours depending on the record's previous TTL.
+
+---
+<!-- inlined reference: portal-browser-flow.md -->
+
+# Portal flow with a browser tool (Claude in Chrome)
+
+The hosted DeDi onboarding is a portal (UI) action. This is the click-by-click flow for driving
+`dedi.global` with a browser tool. The exact labels may change — read the page, don't assume — so
+treat the field **names** below (which come from the role schemas) as the source of truth, not the
+button text.
+
+## 0. Session setup (do this first, every time)
+
+- If the browser tools are deferred, load them in **one** `ToolSearch` call:
+  `tabs_context_mcp, navigate, computer, read_page, tabs_create_mcp, tabs_close_mcp`,
+  plus `find`, `form_input` for forms.
+- Call `tabs_context_mcp` once before anything else.
+- Open a **new** tab (`tabs_create_mcp`) to `https://dedi.global`. Do not reuse an unrelated tab.
+- **The operator logs in themselves.** Never type the account password, an API key, or a one-time
+  code. If the portal is not already authenticated, stop and ask the operator to sign in, then continue.
+- Never click an element that triggers a native `alert`/`confirm`/`prompt` dialog; it freezes the
+  extension. Prefer reading state back through the public query API over scraping the DOM.
+
+## 1. Create the namespace
+
+1. Go to the namespaces / "Create namespace" area.
+2. Enter the entity's **domain** as the namespace (e.g. `nfo-x.com`).
+3. Submit, then **confirm the namespace exists** by reading it back:
+   `GET https://api.dedi.global/dedi/query/<namespace>` (or the namespace page).
+4. The portal will issue a **DNS TXT** challenge to prove domain ownership — capture the exact
+   record **name** and **value** it shows. Complete it with `references/dns-providers.md` (mode C),
+   then return and finish verification. Do **not** guess the token.
+
+## 2. Create the registry
+
+1. Inside the namespace, "Create registry".
+2. **Name** by convention: `<nfoname>_<networkname>_<env>_registry` (NP) or
+   `<nfoname>_<networkname>_<env>_ref_registry` (NFO).
+3. **Role schema**:
+   - NP → *Beckn Subscriber* (endpoints + keys).
+   - NFO → *Beckn Subscriber Reference* (references to NPs).
+4. Set `state` to `live` when prompted. Confirm with
+   `GET https://api.dedi.global/dedi/query/<namespace>/<registry>`.
+
+## 3. Add records
+
+Confirm the exact values with the operator **before** each submit (writes are live and shared).
+
+- **NP subscriber record** (one per role — BAP/"VAP", BPP/"VPP", CS, DS, CDS):
+  `subscriber_id`, `url` (ONIX callback base), `type`, `countries`, `signing_public_key`,
+  `encr_public_key`. Public keys only.
+- **NFO reference record**: `subscriber_id`, `url` (the NP's lookup URL, e.g.
+  `https://api.dedi.global/dedi/lookup/<np>/<registry>`), `type` = `Registry` or `Record`.
+  Validate the NP first (its callback, role, key, environment).
+
+After each add, read it back: `GET /dedi/lookup/<namespace>/<registry>/<record>` and check `state: live`.
+
+## 4. Finish
+
+- Complete portal domain verification once DNS resolves (mode C).
+- Re-query the registry; confirm all records present and `live`.
+- Record a short summary for the operator: namespace, registry, record names, and the lookup URLs
+  to share (an NFO shares nothing extra; an NP shares its registry lookup URL with its NFO).
+
+## If a step fails 2–3 times
+
+Stop and report what you tried, the page state, and ask the operator how to proceed — do not loop on
+a failing click or explore unrelated pages.
+
+---
+<!-- inlined reference: worked-example.md -->
+
+# Worked example — hosted onboarding (fictional)
+
+Every identifier here is invented. Use it as a shape, not as real values. Fetch live schemas and
+confirm the exact portal fields and DNS token before acting.
+
+## Scenario
+
+- NFO: **`nfo-x.com`**, running the `mobility` network, `prod` environment.
+- NP: **`np1.com`**, a buyer-side app (BAP) and a seller-side app (BPP).
+- Hosted on dedi.global.
+
+## NP (np1.com) onboards itself
+
+1. **Namespace** `np1.com`. Portal issues TXT challenge `name=_dedi.np1.com`,
+   `value=dedi-verify=4f2a…`. (Exact name/value come from the portal.)
+2. **DNS** (Namecheap, operator-run): add TXT `_dedi` → `dedi-verify=4f2a…`, TTL 300. Add A
+   `@` → `203.0.113.10` for the ONIX host. `dig +short TXT _dedi.np1.com` returns the token.
+3. **Registry** `np1_mobility_prod_registry`, role schema *Beckn Subscriber*, `state: live`.
+4. **Records** (public keys only):
+   - `bap` — `{subscriber_id:"np1.com", url:"https://np1.com/beckn", type:"BAP",
+     countries:["IND"], signing_public_key:"<ed25519-b64>", encr_public_key:"<x25519-b64>"}`
+   - `bpp` — same with `type:"BPP"` (and its own endpoint if different).
+5. **Verify**: `GET https://api.dedi.global/dedi/query/np1.com/np1_mobility_prod_registry` shows both
+   records `live`. Share the registry lookup URL with the NFO.
+
+## NFO (nfo-x.com) adds the NP
+
+1. **Namespace** `nfo-x.com`, DNS TXT verified (as above).
+2. **Registry** `nfo-x_mobility_prod_ref_registry`, role schema *Beckn Subscriber Reference*.
+3. **Validate np1** first: read `GET /dedi/lookup/np1.com/np1_mobility_prod_registry/bap` and check
+   callback, role, key, environment.
+4. **Reference record** `np1` —
+   `{subscriber_id:"np1.com", url:"https://api.dedi.global/dedi/lookup/np1.com/np1_mobility_prod_registry", type:"Registry"}`.
+5. **Verify**: query the ref registry; the `np1` reference resolves. np1 is now a member of the
+   `nfo-x mobility prod` network.
+
+## Testnet note
+
+The real NFH EV-charging testnet reference registry is `nfh.global/testnet-evcharging` (role: Beckn
+Subscriber Reference). An NFO adds an NP there as a reference record with `{subscriber_id, url, type}`
+after validating the NP — exactly the step above. Do testnet before any production network.
