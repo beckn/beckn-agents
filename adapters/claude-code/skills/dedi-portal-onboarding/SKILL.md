@@ -45,10 +45,14 @@ exact write route, field or verification token is not already confirmed below, f
    `https://github.com/LF-Decentralized-Trust-labs/decentralized-directory-protocol`.
 4. The live **portal** itself, read through the browser tool.
 
-**Confirmed public read endpoints** (safe to use directly; verify writes against the docs):
+**Endpoints are code-verified** against the DeDi backend (`nfh-trust-labs/dedi-backend`) and listed
+in `references/api-endpoints.md`. Base `https://api.dedi.global`, all under `/dedi`. Public reads:
 
 - Namespace/registry query: `GET https://api.dedi.global/dedi/query/<namespace>/<registry>`
 - Record lookup: `GET https://api.dedi.global/dedi/lookup/<namespace>/<registry>/<record>`
+
+Still **never invent** a field or a DNS token: confirm bodies against the target instance's live
+`openapi.yaml`, and take DNS TXT values from `generate-dns-txt`, not from guesswork.
 
 ## Hard rules
 
@@ -84,10 +88,19 @@ Never trigger a native browser dialog; read results back with the query API rath
 
 ## Operating mode B — hosted API
 
-Reads use the confirmed endpoints above. **Writes require the namespace account's API key**, which
-the skill must **not** embed or request in chat — the operator runs the authenticated write with
-their own tooling, or uses mode A. For the exact write routes and bodies, consult `dedi-docs`; do
-not hardcode an unverified route.
+Full route table with bodies in `references/api-endpoints.md` (code-verified). The onboarding writes:
+
+- Create namespace: `POST /dedi/create-namespace` — `{ name: <domain>, description }`
+- Create registry: `POST /dedi/<namespace>/create-registry` — `{ registry_name, description, schema, tag? }`
+- Add + publish a record: `POST /dedi/<namespace>/<registry>/save-record-as-draft?publish=true` —
+  `{ record_name, description, details: {<role-schema payload>} }`
+- Domain proof: `GET /dedi/generate-dns-txt/<namespace_id>/<domain>` → publish the TXT → `POST /dedi/verify-domain` → `GET /dedi/check-verification/<namespace_id>`
+
+**Writes authenticate with the operator's API key as `X-API-Key: <key>`** (created via
+`POST /dedi/api-keys`). The skill must **not** embed, request, or log that key — the operator runs
+the authenticated write with their own tooling, or uses mode A. Keys here are account-wide (no
+scope), so to let another account write, use `add-namespace-delegate` / `add-delegate` rather than
+sharing a key.
 
 ## The records
 
@@ -124,6 +137,7 @@ and the generic pattern.
 
 ## References
 
+- `references/api-endpoints.md` — code-verified hosted DeDi routes, bodies and auth (`X-API-Key`).
 - `references/portal-browser-flow.md` — Claude-in-Chrome steps for the dedi.global portal.
 - `references/dns-providers.md` — TXT/A via Namecheap, Cloudflare, Route 53, Google Cloud DNS, MCP, generic.
 - `references/worked-example.md` — a complete hosted NFO + NP onboarding (fictional identifiers).

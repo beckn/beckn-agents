@@ -43,10 +43,14 @@ exact write route, field or verification token is not already confirmed below, f
    `https://github.com/LF-Decentralized-Trust-labs/decentralized-directory-protocol`.
 4. The live **portal** itself, read through the browser tool.
 
-**Confirmed public read endpoints** (safe to use directly; verify writes against the docs):
+**Endpoints are code-verified** against the DeDi backend (`nfh-trust-labs/dedi-backend`) and listed
+in `references/api-endpoints.md`. Base `https://api.dedi.global`, all under `/dedi`. Public reads:
 
 - Namespace/registry query: `GET https://api.dedi.global/dedi/query/<namespace>/<registry>`
 - Record lookup: `GET https://api.dedi.global/dedi/lookup/<namespace>/<registry>/<record>`
+
+Still **never invent** a field or a DNS token: confirm bodies against the target instance's live
+`openapi.yaml`, and take DNS TXT values from `generate-dns-txt`, not from guesswork.
 
 ## Hard rules
 
@@ -82,10 +86,19 @@ Never trigger a native browser dialog; read results back with the query API rath
 
 ## Operating mode B — hosted API
 
-Reads use the confirmed endpoints above. **Writes require the namespace account's API key**, which
-the skill must **not** embed or request in chat — the operator runs the authenticated write with
-their own tooling, or uses mode A. For the exact write routes and bodies, consult `dedi-docs`; do
-not hardcode an unverified route.
+Full route table with bodies in `references/api-endpoints.md` (code-verified). The onboarding writes:
+
+- Create namespace: `POST /dedi/create-namespace` — `{ name: <domain>, description }`
+- Create registry: `POST /dedi/<namespace>/create-registry` — `{ registry_name, description, schema, tag? }`
+- Add + publish a record: `POST /dedi/<namespace>/<registry>/save-record-as-draft?publish=true` —
+  `{ record_name, description, details: {<role-schema payload>} }`
+- Domain proof: `GET /dedi/generate-dns-txt/<namespace_id>/<domain>` → publish the TXT → `POST /dedi/verify-domain` → `GET /dedi/check-verification/<namespace_id>`
+
+**Writes authenticate with the operator's API key as `X-API-Key: <key>`** (created via
+`POST /dedi/api-keys`). The skill must **not** embed, request, or log that key — the operator runs
+the authenticated write with their own tooling, or uses mode A. Keys here are account-wide (no
+scope), so to let another account write, use `add-namespace-delegate` / `add-delegate` rather than
+sharing a key.
 
 ## The records
 
@@ -122,9 +135,91 @@ and the generic pattern.
 
 ## References
 
+- `references/api-endpoints.md` — code-verified hosted DeDi routes, bodies and auth (`X-API-Key`).
 - `references/portal-browser-flow.md` — Claude-in-Chrome steps for the dedi.global portal.
 - `references/dns-providers.md` — TXT/A via Namecheap, Cloudflare, Route 53, Google Cloud DNS, MCP, generic.
 - `references/worked-example.md` — a complete hosted NFO + NP onboarding (fictional identifiers).
+
+---
+<!-- inlined reference: api-endpoints.md -->
+
+# Hosted DeDi API — endpoints
+
+Routes verified against the DeDi backend source (`nfh-trust-labs/dedi-backend`, `openapi.yaml` +
+`src/modules/*/*.routes.ts` + `src/validators/*.validation.ts`). Base: `https://api.dedi.global`.
+All paths are under `/dedi`. Confirm field details against the running `openapi.yaml` of the instance
+you target before a write — schemas evolve.
+
+## Auth
+
+- Writes require an authenticated principal. Two accepted mechanisms (CORS allows both headers in
+  `src/app/createApp.ts`): a logged-in session, or an **API key** sent as **`X-API-Key: <key>`**
+  (also accepted on `Authorization`).
+- Create a key: `POST /dedi/api-keys`. List: `GET /dedi/api-keys`. Delete: `DELETE /dedi/api-keys/{key_id}`.
+- **The operator creates and holds the key. Never enter it in chat, a URL, or a login form, and
+  never log it.** API keys here are account-wide (no per-key scope), so treat them as high-value.
+- Account/session: `POST /dedi/register` (register/login), `GET /dedi/verify-email`, `GET /dedi/auth/me`.
+
+## Reads (public — safe to call directly)
+
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/dedi/lookup/{namespace}` | Namespace lookup |
+| GET | `/dedi/lookup/{namespace}/{registry_name}` | Registry lookup |
+| GET | `/dedi/lookup/{namespace}/{registry_name}/{record_name}` | Record lookup |
+| GET | `/dedi/query/{namespace}` | List a namespace's registries |
+| GET | `/dedi/query/{namespace}/{registry_name}` | List a registry's records |
+| GET | `/dedi/versions/{namespace}/...` | Version history |
+| GET | `/dedi/search/{namespace}` | Search records |
+
+## Writes (authenticated)
+
+### Create namespace
+`POST /dedi/create-namespace`
+Body: `{ "name": "<domain>", "description": "<text>", "meta"?: {...} }`
+
+### Create registry
+`POST /dedi/{namespace}/create-registry`
+Body: `{ "registry_name": "<name>", "description": "<text>", "schema"?: <role-schema>, "tag"?: "<tag>", "meta"?: {...} }`
+- `schema` is the role schema the records must conform to (Beckn Subscriber for an NP, Beckn
+  Subscriber Reference for an NFO).
+
+### Add a record (optionally publish in one call)
+`POST /dedi/{namespace}/{registry_name}/save-record-as-draft?publish=true`
+Body: `{ "record_name": "<unique>", "description": "<text>", "details": { ... }, "valid_till"?: <...>, "meta"?: {...} }`
+- `details` is the record payload conforming to the registry's role schema:
+  - NP subscriber: `{ subscriber_id, url, type: "BAP"|"BPP"|"CS"|"DS"|"CDS", countries, signing_public_key, encr_public_key }`
+  - NFO reference: `{ subscriber_id, url, type: "Registry"|"Record" }`
+- Omit `?publish=true` to keep it a draft, then publish with:
+  `POST /dedi/{namespace}/{registry_name}/publish-records` Body: `{ "records": ["<record_name>", ...] }`
+
+### Update
+- `POST /dedi/{namespace}/update-namespace`
+- `POST /dedi/{namespace}/{registry_name}/update-registry`
+- `POST /dedi/{namespace}/{registry_name}/{record_name}/update-record`
+- Lifecycle: `inactivate-registry` / `reactivate-registry`; `DELETE .../delete-registry`,
+  `DELETE .../delete-records`, `DELETE /dedi/{namespace}/delete-namespace` (soft-delete; see
+  `/dedi/deleted/*` and `/dedi/restore/*`).
+
+### Delegation / ownership
+`add-namespace-delegate`, `add-delegate` (registry), `transfer-ownership` — use these to grant
+another account write access rather than sharing an API key.
+
+## Domain verification (DNS)
+
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/dedi/generate-dns-txt/{namespace_id}/{domain}` | Get the TXT record to publish |
+| GET | `/dedi/get-dns-txt/{namespace_id}` | Re-fetch the TXT verification record |
+| POST | `/dedi/verify-domain` | Trigger verification once the TXT is live |
+| GET | `/dedi/check-verification/{namespace_id}` | Check verification status |
+
+Flow: create namespace → `generate-dns-txt` → publish the returned TXT at your DNS provider
+(`references/dns-providers.md`) → `verify-domain` → poll `check-verification`. Use the exact TXT
+value the API returns; never invent it.
+
+> Bulk: `POST /dedi/bulk-upload` + `GET /dedi/{namespace}/{registry_name}/download-sample-csv` for
+> many records at once.
 
 ---
 <!-- inlined reference: dns-providers.md -->
